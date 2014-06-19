@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <string>
 
 using namespace std;
 
@@ -9,6 +10,16 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	string hostName = getenv("HOSTNAME");
-	// cout << hostName;
+	string serverAddress = getenv("SERVER_ADDRESS");
+	if (serverAddress == NULL) {
+		cout << "$SERVER_ADDRESS is not set";
+		return 0;
+	}
+	string serverPort = getenv("SERVER_PORT");
+	if (serverPort == NULL) {
+		cout << "$SERVER_PORT is not set";
+		return 0;
+	}
+
+
 }
