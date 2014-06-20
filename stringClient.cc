@@ -1,10 +1,7 @@
-#include <iostream>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <cstring>
-#include <sstream>
 #include <cstdlib>
-#include <unistd.h>
+#include <cstring>
+#include <iostream>
+#include <netdb.h>
 #include <pthread.h>
 #include <queue>
 

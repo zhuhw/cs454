@@ -1,13 +1,6 @@
 #include <arpa/inet.h>
-#include <iostream>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <cstring>
-#include <cstdlib>
-#include <cstdio>
-#include <unistd.h>
-#include <sstream>
+#include <iostream>
 #include <vector>
 
 #include "socketIO.cc"
