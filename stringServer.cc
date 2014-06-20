@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
                 // Handle incomming message
                 int n;
                 int size[1];
-                if ((n = read(*it, size, sizeof(int))) > 0) {
+                if ((n = read(*it, size, sizeof(size))) > 0) {
                     char *recvBuf = new char[size[0]];
                     if ((n = recvAll(*it, recvBuf, size)) == 0) {
                         cout << recvBuf << endl;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
 
-                        if (write(*it, size, sizeof(int)) < 0) {
+                        if (write(*it, size, sizeof(size)) < 0) {
                             cerr << "write failed" << endl;
                             return 0;
                         }
@@ -126,6 +126,7 @@ int main(int argc, char *argv[]) {
                             return 0;
                         }
                     }
+					delete recvBuf;
                 }
             }
         }

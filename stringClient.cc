@@ -36,7 +36,7 @@ void *sendRecv(void *param) {
 			delete sendBuf;
 
             int n;
-            if ((n = read((long)param, size, sizeof(int))) > 0) {
+            if ((n = read((long)param, size, sizeof(size))) > 0) {
 				char *recvBuf = new char[size[0]];
                 if ((n = recvAll((long)param, recvBuf, size)) == 0) {
                     cout << "Server: " << recvBuf << endl;
