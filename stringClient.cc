@@ -17,7 +17,7 @@ queue<string> msgQueue;		// FIFO queue for input message buffering
 void *sendRecv(void *param) {
     for (;;) {
         if (msgQueue.size() > 0) {
-			// send next message from queue
+            // send next message from queue
             int size[1];
             size[0] = msgQueue.front().length() + 1;
             if (send((long)param, size, sizeof(size), 0) < 0) {
@@ -35,7 +35,7 @@ void *sendRecv(void *param) {
             msgQueue.pop();
             delete sendBuf;
 
-			// receive server response
+            // receive server response
             if (recv((long)param, size, sizeof(size), 0) > 0) {
                 char *recvBuf = new char[size[0]];
                 if (recvAll((long)param, recvBuf, size) == 0) {
@@ -68,7 +68,7 @@ int main (int argc, char *argv[]) {
     int maxSocketFd = 1;
     fd_set readfds;
 
-	// getting environment variables
+    // getting environment variables
     char *serverAddress = getenv("SERVER_ADDRESS");
     if (serverAddress == NULL) {
         cout << "$SERVER_ADDRESS is not set\n";
@@ -80,18 +80,18 @@ int main (int argc, char *argv[]) {
         return 0;
     }
 
-	// create client socket
+    // create client socket
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         cerr << "Cannot create socket" << endl;
         return 0;
     }
 
-	// set client info, port is implicitly set to 0 by memset
+    // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
     siServer.sin_port = htons(atoi(serverPort));
 
-	// connect to server
+    // connect to server
     hp = gethostbyname(serverAddress);
     if (!hp) {
         cout << "could not resolve hostname!" << endl;
@@ -105,8 +105,8 @@ int main (int argc, char *argv[]) {
         return 0;
     }
 
-	// create thread that send/receive messages
-	// use main() as another thread to get user input
+    // create thread that send/receive messages
+    // use main() as another thread to get user input
     pthread_t sendRecvThread;
     int rc = pthread_create(&sendRecvThread, NULL, sendRecv, (void *)clientSocket);
 
@@ -120,7 +120,7 @@ int main (int argc, char *argv[]) {
     }
     inputDone = true;
 
-	// wait for thread to finish
+    // wait for thread to finish
     void *status;
     rc = pthread_join(sendRecvThread, &status);
 
