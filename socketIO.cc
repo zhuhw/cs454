@@ -33,7 +33,7 @@ int recvAll(int s, char *buf, int *len) {
         bytesleft -= n;
     }
 
-    *len = total; // return number actually sent here
+    *len = total; // return number actually received here
 
     return (n == -1) ? -1 : 0; // return -1 on failure, 0 on success
 }
