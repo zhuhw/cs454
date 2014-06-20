@@ -25,23 +25,23 @@ void *sendRecv(void *param) {
                 return 0;
             }
 
-			char *sendBuf = new char[size[0]];
-			memcpy(sendBuf, msgQueue.front().c_str(), size[0]);
+            char *sendBuf = new char[size[0]];
+            memcpy(sendBuf, msgQueue.front().c_str(), size[0]);
 
             if (sendAll((long)param, sendBuf, size) < 0) {
                 cerr << "write failed" << endl;
                 return 0;
             }
             msgQueue.pop();
-			delete sendBuf;
+            delete sendBuf;
 
             int n;
             if ((n = read((long)param, size, sizeof(size))) > 0) {
-				char *recvBuf = new char[size[0]];
+                char *recvBuf = new char[size[0]];
                 if ((n = recvAll((long)param, recvBuf, size)) == 0) {
                     cout << "Server: " << recvBuf << endl;
                 }
-				delete recvBuf;
+                delete recvBuf;
             }
 
         }

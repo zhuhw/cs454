@@ -1,6 +1,6 @@
-string:
+all:
 	g++ stringServer.cc -o stringServer
-	g++ stringClient.cc -o stringClient -Wno-int-to-pointer-cast -lpthread 
+	g++ stringClient.cc -o stringClient -Wno-int-to-pointer-cast -lpthread
 
 clean:
-	rm server client
+	rm stringServer stringClient
