@@ -104,16 +104,16 @@ int main(int argc, char *argv[]) {
                 int n;
                 int size[1];
                 if ((n = read(*it, size, sizeof(int))) > 0) {
-                    string output(*size, 0);
-                    if ((n = read(*it, &output[0], *size)) > 0) {
-                        cout << output << endl;
+                    char *recvBuf = new char[size[0]];
+                    if ((n = recvAll(*it, recvBuf, size)) == 0) {
+                        cout << recvBuf << endl;
 
-                        output[0] = toupper(output[0]);
-                        for (int i = 1; i < n; i++) {
-                            if (output[i - 1] == ' ') {
-                                output[i] = toupper(output[i]);
+                        recvBuf[0] = toupper(recvBuf[0]);;
+                        for (int i = 1; i < size[0]; i++) {
+                            if (recvBuf[i - 1] == ' ') {
+                                recvBuf[i] = toupper(recvBuf[i]);
                             } else {
-                                output[i] = tolower(output[i]);
+                                recvBuf[i] = tolower(recvBuf[i]);
                             }
                         }
 
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
                             cerr << "write failed" << endl;
                             return 0;
                         }
-                        if (write(*it, output.c_str(), output.length()) < 0) {
+                        if (sendAll(*it, recvBuf, size) < 0) {
                             cerr << "write failed" << endl;
                             return 0;
                         }
