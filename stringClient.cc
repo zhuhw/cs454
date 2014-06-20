@@ -5,10 +5,54 @@
 #include <sstream>
 #include <cstdlib>
 #include <unistd.h>
+#include <pthread.h>
+#include <queue>
 
 #include "socketIO.cc"
 
 using namespace std;
+
+bool inputDone = false;
+queue<string> msgQueue;
+
+void *sendRecv(void *param) {
+    while (1) {
+        if (msgQueue.size() > 0) {
+            int size[1];
+            size[0] = msgQueue.front().length() + 1;
+            if (write((long)param, size, sizeof(size)) < 0) {
+                cerr << "write failed" << endl;
+                return 0;
+            }
+
+			char *sendBuf = new char[size[0]];
+			memcpy(sendBuf, msgQueue.front().c_str(), size[0]);
+
+            if (sendAll((long)param, sendBuf, size) < 0) {
+                cerr << "write failed" << endl;
+                return 0;
+            }
+            msgQueue.pop();
+			delete sendBuf;
+
+            int n;
+            if ((n = read((long)param, size, sizeof(int))) > 0) {
+				char *recvBuf = new char[size[0]];
+                if ((n = recvAll((long)param, recvBuf, size)) == 0) {
+                    cout << "Server: " << recvBuf << endl;
+                }
+				delete recvBuf;
+            }
+
+        }
+        if (inputDone && msgQueue.empty()) {
+            break;
+        }
+        sleep(2);
+    }
+
+    pthread_exit(NULL);
+}
 
 int main (int argc, char *argv[]) {
     // exit if we don't have exactly 1 argument
@@ -22,7 +66,6 @@ int main (int argc, char *argv[]) {
 
     int clientSocket = 0;
     int maxSocketFd = 1;
-    char buf[BUFLEN];
     fd_set readfds;
 
     char *serverAddress = getenv("SERVER_ADDRESS");
@@ -58,6 +101,9 @@ int main (int argc, char *argv[]) {
         return 0;
     }
 
+    pthread_t sendRecvThread;
+
+    int rc = pthread_create(&sendRecvThread, NULL, sendRecv, (void *)clientSocket);
 
     // get user input
     string line;
@@ -65,21 +111,16 @@ int main (int argc, char *argv[]) {
         if (line.length() == 0) {
             continue;
         }
-
-    	if (write(clientSocket, line.c_str(), line.length()) < 0) {
-			cerr << "write failed" << endl;
-			return 0;
-		}
-
-        char buf[BUFLEN];
-        int n = 0;
-
-        if ((n = read(clientSocket, buf, BUFLEN)) > 0) {
-            buf[n] = 0;
-            cout << "Server: " << buf << endl;
-        }
+        msgQueue.push(line);
     }
+    inputDone = true;
+
+    void *status;
+    rc = pthread_join(sendRecvThread, &status);
+
+    pthread_exit(NULL);
 
     close(clientSocket);
+
     return 0;
 }

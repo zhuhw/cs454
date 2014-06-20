@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
     int serverSocket = 0;
     int maxSocketFd = 1;
     vector<int> clientSockets;
-    struct ifreq ifr;
     struct sockaddr_in siServer;
     fd_set readfds;
 
@@ -102,33 +101,32 @@ int main(int argc, char *argv[]) {
         for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
             if (FD_ISSET(*it, &readfds)) {
                 // Handle incomming message
-                char buf[BUFLEN];
-                int n = 0;
+                int n;
+                int size[1];
+                if ((n = read(*it, size, sizeof(int))) > 0) {
+                    string output(*size, 0);
+                    if ((n = read(*it, &output[0], *size)) > 0) {
+                        cout << output << endl;
 
-                if ((n = read(*it, buf, BUFLEN)) > 0) {
-                    buf[n] = 0;
-                    cout << buf << endl;
+                        output[0] = toupper(output[0]);
+                        for (int i = 1; i < n; i++) {
+                            if (output[i - 1] == ' ') {
+                                output[i] = toupper(output[i]);
+                            } else {
+                                output[i] = tolower(output[i]);
+                            }
+                        }
 
-                    buf[0] = toupper(buf[0]);
-                    for (int i = 1; i < n; i++) {
-                        if (buf[i - 1] == ' ') {
-                            buf[i] = toupper(buf[i]);
-                        } else {
-                            buf[i] = tolower(buf[i]);
+                        if (write(*it, size, sizeof(int)) < 0) {
+                            cerr << "write failed" << endl;
+                            return 0;
+                        }
+                        if (write(*it, output.c_str(), output.length()) < 0) {
+                            cerr << "write failed" << endl;
+                            return 0;
                         }
                     }
-
-                    string response = buf;
-                    if (write(*it, response.c_str(), response.length()) < 0) {
-                        cerr << "write failed" << endl;
-                        return 0;
-                    }
                 }
-
-                // if (n < 0) {
-                //     cout << "Read Error" << endl;
-                //     return 0;
-                // }
             }
         }
     }
