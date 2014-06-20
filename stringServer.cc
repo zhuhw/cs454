@@ -20,27 +20,31 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in siServer;
     fd_set readfds;
 
+	// create server socket
     if ((serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         cerr << "Cannot create master socket for listen" << endl;
         return 0;
     }
 
-    // set server info
+    // set server info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
     siServer.sin_addr.s_addr = htonl(INADDR_ANY);
 
+	// bind socket to port
     if ((bind(serverSocket, (const struct sockaddr*)&siServer, sizeof(struct sockaddr_in))) < 0) {
         cerr << "Bind failed" << endl;
         return 0;
     }
 
+	// retrieve host name for output
     char hostName[128];
     if (gethostname(hostName, sizeof(hostName)) < 0) {
         cerr << "Cannot get host name" << endl;
         return 0;
     }
 
+	// retrieve socket info for output
     struct sockaddr_in sin;
     socklen_t len = sizeof(sin);
     if (getsockname(serverSocket, (struct sockaddr *)&sin, &len) < 0) {
@@ -48,9 +52,11 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+	// print server info for clients to connect
     cout << "SERVER_ADDRESS " << hostName << endl
          << "SERVER_PORT " << ntohs(sin.sin_port) << endl;
 
+	// listen max 5 clients
     if (listen(serverSocket, 5) < 0) {
         cerr << "lisen failed" << endl;
         return 0;
@@ -76,7 +82,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // some error on select(), maybe need to dump errono
+        // some error on select()
         if (select(maxSocketFd, &readfds, NULL, NULL, NULL) < 0) {
             cerr << "Select error" << endl;
         }
@@ -94,14 +100,15 @@ int main(int argc, char *argv[]) {
         for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
             if (FD_ISSET(*it, &readfds)) {
                 // Handle incomming message
-                int n;
                 int size[1];
-                if ((n = read(*it, size, sizeof(size))) > 0) {
+                if (recv(*it, size, sizeof(size), 0) > 0) {
                     char *recvBuf = new char[size[0]];
-                    if ((n = recvAll(*it, recvBuf, size)) == 0) {
+                    if (recvAll(*it, recvBuf, size) == 0) {
+						// output received message
                         cout << recvBuf << endl;
 
-                        recvBuf[0] = toupper(recvBuf[0]);;
+						// convert to title-case
+                        recvBuf[0] = toupper(recvBuf[0]);
                         for (int i = 1; i < size[0]; i++) {
                             if (recvBuf[i - 1] == ' ') {
                                 recvBuf[i] = toupper(recvBuf[i]);
@@ -110,7 +117,8 @@ int main(int argc, char *argv[]) {
                             }
                         }
 
-                        if (write(*it, size, sizeof(size)) < 0) {
+						// send message to client
+                        if (send(*it, size, sizeof(size), 0) < 0) {
                             cerr << "write failed" << endl;
                             return 0;
                         }
