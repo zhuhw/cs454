@@ -10,12 +10,18 @@ SERVER_TARGET = server
 CLIENT_OBJECTS = client1.o
 CLIENT_TARGET = client
 
+BINDER_OBJECTS = binder.o
+BINDER_TARGET = binder
+
 ###########################################################
 
-all : clean ${LIB_TARGT} ${SERVER_TARGET} ${CLIENT_TARGET}
+all : clean ${LIB_TARGT} ${BINDER_TARGET} ${SERVER_TARGET} ${CLIENT_TARGET}
 
 ${LIB_TARGT} : ${LIB_OBJECTS}
 	ar crs librpc.a ${LIB_OBJECTS}
+
+${BINDER_TARGET} : ${BINDER_OBJECTS}
+	${CXX} ${BINDER_OBJECTS} -o ${BINDER_TARGET}
 
 ${SERVER_TARGET} : ${SERVER_OBJECTS}
 	${CXX} -L. ${SERVER_OBJECTS} -lrpc -pthread -o server
