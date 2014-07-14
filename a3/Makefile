@@ -31,4 +31,4 @@ ${CLIENT_TARGET} : ${CLIENT_OBJECTS}
 
 
 clean :
-	rm -f *.d *.o *.a server client
+	rm -f *.d *.o *.a server client binder
