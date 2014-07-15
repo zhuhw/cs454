@@ -1,9 +1,15 @@
 #include "rpc.h"
+#include "common.h"
 #include <iostream>
+#include <sstream>
+#include <sys/socket.h>
+#include <netdb.h>
 
 using namespace std;
 
-static int
+static int serverSocket;
+static int listenSocket;
+
 
 int rpcInit() {
     char *binder_address = getenv("BINDER_ADDRESS");
@@ -15,7 +21,6 @@ int rpcInit() {
     }
 
     //-----------------------------------------
-    int serverSocket;
     struct hostent *host;
     struct sockaddr_in siServer;
 
@@ -44,8 +49,6 @@ int rpcInit() {
         return -1;
     }
     //-----------------------------------------
-
-    int listenSocket;
     struct sockaddr_in siListen;
 
     // create client socket
@@ -75,6 +78,14 @@ int rpcInit() {
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
+    stringstream message;
+    message << REGISTER << name;
+
+    int *cur = argTypes;
+    while (*cur != 0) {
+        // message
+    }
+
     return 0;
 }
 
