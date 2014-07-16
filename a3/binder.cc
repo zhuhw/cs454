@@ -79,25 +79,8 @@ int processRequests(int socket){
             cerr << "duplicate function" << endl;
             msgType = REGISTER_FAILURE;
         }
-
-
-
-
-
-        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
-            cout << it->first.name << ", ";
-            for (int *i = it->first.argTypes; *i != 0; i++) {
-                cout << (unsigned int)*i << " ";
-            } cout << " => ";
-            cout << it->second.host << it->second.port << endl;
-        }
-
-
-
         serverMap[function] = serverInfo;
 
-
-
         for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
             cout << it->first.name << ", ";
             for (int *i = it->first.argTypes; *i != 0; i++) {
@@ -105,13 +88,6 @@ int processRequests(int socket){
             } cout << " => ";
             cout << it->second.host << it->second.port << endl;
         }
-
-
-
-
-
-
-
 
         size[0] = sizeof(msgType);
         if (send(socket, size, sizeof(size), 0) < 0) {
