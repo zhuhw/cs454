@@ -1,9 +1,14 @@
-#include "rpc.h"
-#include "common.h"
 #include <iostream>
 #include <sstream>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+
+#include "rpc.h"
+#include "common.h"
 
 using namespace std;
 
@@ -78,15 +83,67 @@ int rpcInit() {
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
-    stringstream message;
-    message << REGISTER << name;
+    // prepare message content to be sent
+    char hostname[128];
+    gethostname(hostname, 128);
 
-    int *cur = argTypes;
-    while (*cur != 0) {
-        // message
+    struct sockaddr_in siServer;
+    socklen_t siLen = sizeof(siServer);
+    getsockname(serverSocket, (struct sockaddr *)&siServer, &siLen);
+    unsigned short portNum = ntohs(siServer.sin_port);
+
+    unsigned int argTypesSize = 0;
+    while (argTypes[argTypesSize] != 0) {
+        ++argTypesSize;
+    }
+    ++argTypesSize;
+
+    // sending message
+    int size[1];
+    size[0] = sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1 + sizeof(int) * argTypesSize;
+    if (send(serverSocket, size, sizeof(size), 0) < 0) {
+        cerr << "write failed1" << endl;
+        return -1;
     }
 
-    return 0;
+    char *sendBuf = new char[size[0]];
+    memcpy(sendBuf,
+        (int)REGISTER, sizeof(REGISTER));
+    memcpy(sendBuf + sizeof(REGISTER),
+        hostname, strlen(hostname) + 1);
+    memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1,
+        &portNum, sizeof(portNum));
+    memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum),
+        name, strlen(name) + 1);
+    memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1,
+        argTypes, sizeof(int) * argTypesSize);
+    if (sendAll(serverSocket, sendBuf, size) < 0) {
+        cerr << "write failed2" << endl;
+        return -1;
+    }
+    delete sendBuf;
+
+    // waiting for result
+    if (recv(serverSocket, size, sizeof(size), 0) < 0) {
+        cerr << "receive failed3" << endl;
+        return -1;
+    }
+    char *recvBuf = new char[size[0]];
+    if (recvAll(serverSocket, recvBuf, size) < 0) {
+        cerr << "receive failed4" << endl;
+        return -1;
+    }
+
+    MessageType response;
+    memcpy(&response, recvBuf, size[0]);
+    delete recvBuf;
+    if (response == REGISTER_SUCCESS) {
+        return 0;
+    } else {
+        return 1;
+    }
+
+    return -1;
 }
 
 int rpcExecute() {

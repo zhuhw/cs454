@@ -1,4 +1,5 @@
-include "common.h"
+#include "common.h"
+#include <sys/socket.h>
 
 using namespace std;
 

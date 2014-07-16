@@ -13,7 +13,7 @@ enum MessageType {
     TERMINATE
 };
 
-int sendAll(int s, char *buf, int *len);
-int recvAll(int s, char *buf, int *len);
+extern int sendAll(int s, char *buf, int *len);
+extern int recvAll(int s, char *buf, int *len);
 
 #endif
