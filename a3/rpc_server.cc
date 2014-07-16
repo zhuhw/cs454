@@ -1,5 +1,4 @@
 #include <iostream>
-#include <sstream>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -15,7 +14,7 @@ using namespace std;
 
 static int serverSocket;
 static int listenSocket;
-static map<struct FunctionSignature, skeleton> skeletonMap;
+static map<struct ProcedureSignature, skeleton> skeletonMap;
 
 int rpcInit() {
     char *binder_address = getenv("BINDER_ADDRESS");
@@ -80,12 +79,12 @@ int rpcInit() {
         return -1;
     }
 
-    cout << "rpcInit done" << endl;
+    // cout << "rpcInit done" << endl;
     return 0;
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
-    cout << "rpcRegister start" << endl;
+    // cout << "rpcRegister start" << endl;
     // prepare message content to be sent
     char hostname[128];
     gethostname(hostname, 128);
@@ -143,13 +142,12 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     delete recvBuf;
     cout <<"RESPONSE:"<<(int)response<<endl;
     if (response == REGISTER_SUCCESS) {
-        struct FunctionSignature function = {name, argTypes};
+        struct ProcedureSignature function = {name, argTypes};
         skeletonMap[function] = f;
         cout<<"success"<<endl;
         return 0;
     } else {
         cout<<"fail"<<endl;
-
         return 1;
     }
 
@@ -157,12 +155,14 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
-    for (map<struct FunctionSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
+    for (map<struct ProcedureSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
         cout << it->first.name << ", ";
         for (int *i = it->first.argTypes; *i != 0; i++) {
             cout << (unsigned int)*i << " ";
         } cout << '\n';
     }
+
+    for (;;) {}
 
     return 0;
 }

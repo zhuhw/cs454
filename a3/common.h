@@ -8,6 +8,7 @@ enum MessageType {
     REGISTER_SUCCESS,
     REGISTER_FAILURE,
     LOC_REQUEST,
+    LOC_SUCCESS,
     LOC_FAILURE,
     EXECUTE,
     EXECUTE_SUCCESS,
@@ -18,11 +19,16 @@ enum MessageType {
 extern int sendAll(int s, char *buf, int *len);
 extern int recvAll(int s, char *buf, int *len);
 
-struct FunctionSignature {
+struct ProcedureSignature {
     char *name;
     int *argTypes;
 };
 
-bool operator <(const FunctionSignature& x, const FunctionSignature& y);
+bool operator <(const ProcedureSignature& x, const ProcedureSignature& y);
+
+struct ServerInfo {
+    char* host;
+    unsigned short port;
+};
 
 #endif

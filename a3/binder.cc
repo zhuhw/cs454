@@ -5,19 +5,20 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <vector>
 
 #include "common.h"
 
 using namespace std;
 
-map<struct FunctionSignature, string> serverMap;
+map<struct ProcedureSignature, struct ServerInfo> serverMap;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
     exit(code);
 }
 
-int processRequests(int socket, fd_set active_fd_set){
+int processRequests(int socket){
     // waiting for result
     int size[1];
     if (recv(socket, size, sizeof(size), 0) < 0) {
@@ -34,80 +35,163 @@ int processRequests(int socket, fd_set active_fd_set){
     memcpy(&msgType, recvBuf, sizeof(int));
     cout <<"TYPE:"<< msgType << endl;
 
-    int hostnameLen = strlen(recvBuf + 4);
-    char hostname[hostnameLen];
-    memcpy(hostname, recvBuf + 4, hostnameLen);
-    hostname[hostnameLen] = '\0';
-    cout <<"HOSTNAME:"<<hostname<<endl;
+    if (msgType == REGISTER) {
+        int hostnameLen = strlen(recvBuf + 4);
+        char *hostname = new char[hostnameLen];
+        memcpy(hostname, recvBuf + 4, hostnameLen);
+        hostname[hostnameLen] = '\0';
+        cout <<"HOSTNAME:"<<hostname<<endl;
 
-    unsigned short portno;
-    memcpy(&portno, recvBuf + 4 + hostnameLen + 1, sizeof(short));
-    cout <<"PORT:"<<portno<<endl;
+        unsigned short portno;
+        memcpy(&portno, recvBuf + 4 + hostnameLen + 1, sizeof(short));
+        cout <<"PORT:"<<portno<<endl;
 
-    int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
-    char *name = new char[nameLen];
-    memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
-    name[nameLen] = '\0';
-    cout <<"FUNC NAME:"<<name<<endl;
+        int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
+        char *name = new char[nameLen];
+        memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
+        name[nameLen] = '\0';
+        cout <<"FUNC NAME:"<<name<<endl;
 
-    int intPrtLen = 0;
-    int *cur = (int*)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1);
-    while (cur[intPrtLen] != 0) {
+        int intPrtLen = 0;
+        int *cur = (int*)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1);
+        while (cur[intPrtLen] != 0) {
+            ++intPrtLen;
+        }
         ++intPrtLen;
+        int *intPrt = new int[intPrtLen];
+        memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
+
+        cout<<"ARGTYPES:";
+        for (int i = 0;i < intPrtLen;i++) {
+            cout << (unsigned int)intPrt[i] << " ";
+        } cout<<endl;
+        delete recvBuf;
+        // end of parsing---------------------------
+
+        struct ProcedureSignature function = {name, intPrt};
+        struct ServerInfo serverInfo = {hostname, portno};
+
+        if (serverMap.find(function) == serverMap.end()) {
+            msgType = REGISTER_SUCCESS;
+        } else {
+            cerr << "duplicate function" << endl;
+            msgType = REGISTER_FAILURE;
+        }
+        serverMap[function] = serverInfo;
+
+        size[0] = sizeof(msgType);
+        if (send(socket, size, sizeof(size), 0) < 0) {
+            cerr << "write failed1" << endl;
+            exit_and_close(-1, socket);
+        }
+
+        char *sendBuf = new char[size[0]];
+        cout <<"msgType:"<<msgType<<endl;
+        memcpy(sendBuf, &msgType, sizeof(msgType));
+        if (sendAll(socket, sendBuf, size) < 0) {
+            cerr << "write failed2" << endl;
+            exit_and_close(-1, socket);
+        }
+        delete sendBuf;
+
+    } else if (msgType == LOC_REQUEST) {
+        cout<<"LOC_REQUEST"<<endl;
+        unsigned int nameSize = 0;
+        char *cur = recvBuf + sizeof(LOC_REQUEST);
+        while (cur[nameSize] != 0) {
+            ++nameSize;
+        }
+        ++nameSize;
+
+        char* name = new char[nameSize];
+        memcpy(name, cur, nameSize);
+        name[nameSize] = '\0';
+        cout<<"NAME:"<<name<<endl;
+
+        int argTypesSize = 0;
+        int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
+        while (intCur[argTypesSize] != 0) {
+            ++argTypesSize;
+        }
+        ++argTypesSize;
+        int *argTypes = new int[argTypesSize];
+        memcpy(argTypes, intCur, argTypesSize * sizeof(int));
+
+        cout<<"ARGTYPES:";
+        for (int i = 0;i < argTypesSize;i++) {
+            cout << (unsigned int)argTypes[i] << " ";
+        } cout<<endl;
+
+        struct ProcedureSignature function = {name, argTypes};
+        map<struct ProcedureSignature, struct ServerInfo>::iterator findIt = serverMap.find(function);
+
+        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
+            cout << it->first.name << ", ";
+            for (int *i = it->first.argTypes; *i != 0; i++) {
+                cout << (unsigned int)*i << " ";
+            } cout << " => ";
+            cout << it->second.host << it->second.port << endl;
+        }
+
+        int size[1];
+        char *sendBuf;
+        if (findIt == serverMap.end()) {
+            msgType = LOC_FAILURE;
+            size[0] = sizeof(LOC_FAILURE) + sizeof(int);
+
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                cerr << "write failed1" << endl;
+                return -1;
+            }
+
+            sendBuf = new char[size[0]];
+            memcpy(sendBuf, &msgType, sizeof(msgType));
+
+            int reasonCode = -1;
+            memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
+        } else {
+            msgType = LOC_SUCCESS;
+            size[0] = sizeof(LOC_SUCCESS) + strlen(findIt->second.host) + 1 + sizeof(unsigned short);
+
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                cerr << "write failed1" << endl;
+                return -1;
+            }
+
+            sendBuf = new char[size[0]];
+            memcpy(sendBuf, &msgType, sizeof(msgType));
+
+            struct ServerInfo serverInfo = findIt->second;
+            memcpy(sendBuf + sizeof(msgType),
+                serverInfo.host, strlen(serverInfo.host) + 1);
+            unsigned short port = serverInfo.port;
+            memcpy(sendBuf + sizeof(msgType) + strlen(serverInfo.host) + 1,
+                &port, sizeof(unsigned short));
+        }
+
+        if (sendAll(socket, sendBuf, size) < 0) {
+            cerr << "write failed2" << endl;
+            return -1;
+        }
+
+        delete sendBuf;
+        delete recvBuf;
     }
-    ++intPrtLen;
-    int *intPrt = new int[intPrtLen];
-    memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
 
-    cout<<"ARGTYPES:";
-    for (int i = 0;i < intPrtLen;i++) {
-        cout << intPrt[i] << " ";
-    } cout<<endl;
-    delete recvBuf;
-    // end of parsing---------------------------
-
-    struct FunctionSignature function = {name, intPrt};
-    stringstream ss;
-    ss << hostname << ":" << portno;
-
-    if (serverMap[function] == "") {
-        serverMap[function] = ss.str();
-        msgType = REGISTER_SUCCESS;
-    } else {
-        cerr << "duplicate function" << endl;
-        msgType = REGISTER_FAILURE;
-    }
-
-    size[0] = sizeof(msgType);
-    if (send(socket, size, sizeof(size), 0) < 0) {
-        cerr << "write failed1" << endl;
-        exit_and_close(-1, socket);
-    }
-
-    char *sendBuf = new char[size[0]];
-    cout <<"msgType:"<<msgType<<endl;
-    memcpy(sendBuf, &msgType, sizeof(msgType));
-    if (sendAll(socket, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
-        exit_and_close(-1, socket);
-    }
-    delete sendBuf;
-
-    for (map<struct FunctionSignature, string>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
-        cout << it->first.name << ", ";
-        for (int *i = it->first.argTypes; *i != 0; i++) {
-            cout << (unsigned int)*i << " ";
-        } cout << " => ";
-        cout << it->second << endl;
-    }
+    return 0;
 }
 
 int main() {
     struct sockaddr_in addr;
     addr.sin_port = 0;
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    int sockfd = socket(AF_INET,SOCK_STREAM,0);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    int sockfd;
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        cerr << "Cannot create master socket for listen" << endl;
+        exit_and_close(-1, sockfd);
+    }
 
     // Bind
     if (bind(sockfd, (const struct sockaddr *) &addr, sizeof(struct sockaddr_in)) < 0) {
@@ -117,69 +201,66 @@ int main() {
 
     // Get hostname
     char hostname[255];
-    if(gethostname(hostname,255)==-1) {
+    if(gethostname(hostname,255) < 0) {
         cerr << "Error: fail to get hostname."<<endl;
     }
     cout << "BINDER_ADDRESS " << hostname <<endl;
 
-    listen(sockfd, 128);
+    // listen socket
+    if (listen(sockfd, 128) < 0) {
+        cerr << "lisen failed" << endl;
+        return 0;
+    }
 
     // Get port number
     socklen_t len = sizeof(addr);
-    if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == -1) {
+    if (getsockname(sockfd, (struct sockaddr *)&addr, &len) < 0) {
         cerr << "Error: fail to get port number " << endl;
         exit_and_close(-1, sockfd);
     }
     cout << "BINDER_PORT " << ntohs(addr.sin_port) << endl;
 
-    fd_set active_fd_set, read_fd_set;
-    FD_ZERO (&active_fd_set);
-    FD_SET (sockfd, &active_fd_set);
-    int fdmax = sockfd;
+    fd_set readfds;
+    int maxSocketFd = 1;
+    vector<int> clientSockets;
+    // Wait for message from client
+    for (;;) {
+        // clear read socket sets
+        FD_ZERO(&readfds);
 
-    while (1) {
-        read_fd_set = active_fd_set;
-        if (select (fdmax+1, &read_fd_set, NULL, NULL, NULL) < 0) {
-            cerr << "Error: select." << endl;
-            exit_and_close(-1, sockfd);
+        // add server socket to the read set explicity
+        FD_SET(sockfd, &readfds);
+        maxSocketFd = sockfd + 1;
+
+        // add all established connection sockets to read set
+        for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
+            if (*it > 0) {
+                FD_SET(*it, &readfds);
+            }
+
+            if (*it >= maxSocketFd) {
+                maxSocketFd = *it + 1;
+            }
         }
 
-        // Loop through all sockets with input pending
-        for (int i = 0; i <= fdmax; ++i) {
-            if (FD_ISSET(i, &read_fd_set)) {
-                if (i == sockfd){
-                    // request on main socket, create a new socket
-                    struct sockaddr_in client;
-                    socklen_t len = sizeof(client);
-                    int newsockfd = accept(sockfd, (struct sockaddr *) &client, &len);
+        // some error on select()
+        if (select(maxSocketFd, &readfds, NULL, NULL, NULL) < 0) {
+            cerr << "Select error" << endl;
+        }
 
-                    if (newsockfd > fdmax) {
-                        fdmax = newsockfd;
-                    }
+        if (FD_ISSET(sockfd, &readfds)) {
+            // New connection
+            int fd = accept(sockfd, (struct sockaddr*)NULL, NULL);
+            if (fd < 0) {
+                cerr << "Accept error" << endl;
+                return 0;
+            }
+            clientSockets.push_back(fd);
+        }
 
-                    FD_SET (newsockfd, &active_fd_set);
-                } else {
-                    processRequests(i, active_fd_set);
-
-                    // If on a client socket
-                    // char* request_msg;
-
-                    // receive all messages
-                    // if (recvall(i, request_msg) < 0) {
-                    //     close(i); // close socket
-                    //     FD_CLR(i, &active_fd_set); // remove from active set
-                    // } else {
-                    //     string message = title_case(string(request_msg));
-
-                    //     if(sendall(i, message)){
-                    //         cerr << "Error on sending message" <<endl;
-                    //         exit_and_close(-1, sockfd);
-                    //     }
-
-                    //     delete [] request_msg;
-                    // }
-
-                }
+        for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
+            if (FD_ISSET(*it, &readfds)) {
+                processRequests(*it);
             }
         }
     }

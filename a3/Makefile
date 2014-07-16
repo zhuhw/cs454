@@ -7,7 +7,7 @@ LIB_TARGT = lib
 SERVER_OBJECTS = server_functions.o server_function_skels.o server.o
 SERVER_TARGET = server
 
-CLIENT_OBJECTS = client1.o
+CLIENT_OBJECTS = client1.o common.o
 CLIENT_TARGET = client
 
 BINDER_OBJECTS = binder.o common.o
