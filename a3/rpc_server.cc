@@ -141,6 +141,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     MessageType response;
     memcpy(&response, recvBuf, size[0]);
     delete recvBuf;
+    cout <<"RESPONSE:"<<(int)response<<endl;
     if (response == REGISTER_SUCCESS) {
         struct FunctionSignature function = {name, argTypes};
         skeletonMap[function] = f;
@@ -156,12 +157,12 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
-    // for (map<struct FunctionSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
-    //     cout << it->first.name << ", ";
-    //     for (int *i = it->first.argTypes; *i != 0; i++) {
-    //         cout << (unsigned int)*i << " ";
-    //     } cout << '\n';
-    // }
+    for (map<struct FunctionSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
+        cout << it->first.name << ", ";
+        for (int *i = it->first.argTypes; *i != 0; i++) {
+            cout << (unsigned int)*i << " ";
+        } cout << '\n';
+    }
 
     return 0;
 }

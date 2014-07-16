@@ -10,7 +10,7 @@
 
 using namespace std;
 
-static map<struct FunctionSignature, string> serverMap;
+map<struct FunctionSignature, string> serverMap;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
@@ -45,7 +45,7 @@ int processRequests(int socket, fd_set active_fd_set){
     cout <<"PORT:"<<portno<<endl;
 
     int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
-    char name[nameLen];
+    char *name = new char[nameLen];
     memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
     name[nameLen] = '\0';
     cout <<"FUNC NAME:"<<name<<endl;
@@ -59,18 +59,39 @@ int processRequests(int socket, fd_set active_fd_set){
     int *intPrt = new int[intPrtLen];
     memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
 
+    cout<<"ARGTYPES:";
     for (int i = 0;i < intPrtLen;i++) {
-        cout << intPrt[i] <<endl;
-    }
+        cout << intPrt[i] << " ";
+    } cout<<endl;
     delete recvBuf;
     // end of parsing---------------------------
-
 
     struct FunctionSignature function = {name, intPrt};
     stringstream ss;
     ss << hostname << ":" << portno;
-    serverMap[function] = ss.str();
-    delete intPrt;
+
+    if (serverMap[function] == "") {
+        serverMap[function] = ss.str();
+        msgType = REGISTER_SUCCESS;
+    } else {
+        cerr << "duplicate function" << endl;
+        msgType = REGISTER_FAILURE;
+    }
+
+    size[0] = sizeof(msgType);
+    if (send(socket, size, sizeof(size), 0) < 0) {
+        cerr << "write failed1" << endl;
+        exit_and_close(-1, socket);
+    }
+
+    char *sendBuf = new char[size[0]];
+    cout <<"msgType:"<<msgType<<endl;
+    memcpy(sendBuf, &msgType, sizeof(msgType));
+    if (sendAll(socket, sendBuf, size) < 0) {
+        cerr << "write failed2" << endl;
+        exit_and_close(-1, socket);
+    }
+    delete sendBuf;
 
     for (map<struct FunctionSignature, string>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
         cout << it->first.name << ", ";
@@ -79,29 +100,6 @@ int processRequests(int socket, fd_set active_fd_set){
         } cout << " => ";
         cout << it->second << endl;
     }
-
-    bool addSuccess = true;
-
-    size[0] = sizeof(msgType);
-    if (send(socket, size, sizeof(size), 0) < 0) {
-        cerr << "write failed1" << endl;
-        return -1;
-    }
-
-    char *sendBuf = new char[size[0]];
-
-    if (addSuccess) {
-        msgType = REGISTER_SUCCESS;
-    } else {
-        msgType = REGISTER_FAILURE;
-    }
-
-    memcpy(sendBuf, &msgType, sizeof(msgType));
-    if (sendAll(socket, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
-        return -1;
-    }
-    delete sendBuf;
 }
 
 int main() {
