@@ -15,7 +15,7 @@ using namespace std;
 
 static int serverSocket;
 static int listenSocket;
-// static map<, skeleton> skeletonMap;
+static map<struct FunctionSignature, skeleton> skeletonMap;
 
 int rpcInit() {
     char *binder_address = getenv("BINDER_ADDRESS");
@@ -142,7 +142,8 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     memcpy(&response, recvBuf, size[0]);
     delete recvBuf;
     if (response == REGISTER_SUCCESS) {
-        // TODO add to db
+        struct FunctionSignature function = {name, argTypes};
+        skeletonMap[function] = f;
         cout<<"success"<<endl;
         return 0;
     } else {
@@ -155,5 +156,12 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
+    // for (map<struct FunctionSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
+    //     cout << it->first.name << ", ";
+    //     for (int *i = it->first.argTypes; *i != 0; i++) {
+    //         cout << (unsigned int)*i << " ";
+    //     } cout << '\n';
+    // }
+
     return 0;
 }

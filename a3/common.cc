@@ -40,3 +40,12 @@ int recvAll(int s, char *buf, int *len) {
 
     return (n == -1) ? -1 : 0; // return -1 on failure, 0 on success
 }
+
+bool operator <(const FunctionSignature& x, const FunctionSignature& y) {
+    int result = strcmp(x.name, y.name);
+    if (result != 0) {
+        return result;
+    }
+
+    return strcmp((char *)(x.argTypes), (char *)(y.argTypes));
+}

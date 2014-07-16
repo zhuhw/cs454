@@ -1,6 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <string>
+
 enum MessageType {
     REGISTER,
     REGISTER_SUCCESS,
@@ -15,5 +17,12 @@ enum MessageType {
 
 extern int sendAll(int s, char *buf, int *len);
 extern int recvAll(int s, char *buf, int *len);
+
+struct FunctionSignature {
+    char *name;
+    int *argTypes;
+};
+
+bool operator <(const FunctionSignature& x, const FunctionSignature& y);
 
 #endif

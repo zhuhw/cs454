@@ -3,10 +3,14 @@
 #include <netinet/ip.h>
 #include <unistd.h>
 #include <iostream>
+#include <map>
+#include <sstream>
 
 #include "common.h"
 
 using namespace std;
+
+static map<struct FunctionSignature, string> serverMap;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
@@ -28,23 +32,23 @@ int processRequests(int socket, fd_set active_fd_set){
 
     int msgType;
     memcpy(&msgType, recvBuf, sizeof(int));
-    cout <<"type:"<< msgType << endl;
+    cout <<"TYPE:"<< msgType << endl;
 
     int hostnameLen = strlen(recvBuf + 4);
     char hostname[hostnameLen];
     memcpy(hostname, recvBuf + 4, hostnameLen);
     hostname[hostnameLen] = '\0';
-    cout <<hostname<<endl;
+    cout <<"HOSTNAME:"<<hostname<<endl;
 
     unsigned short portno;
     memcpy(&portno, recvBuf + 4 + hostnameLen + 1, sizeof(short));
-    cout <<portno<<endl;
+    cout <<"PORT:"<<portno<<endl;
 
     int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
     char name[nameLen];
     memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
     name[nameLen] = '\0';
-    cout <<name<<endl;
+    cout <<"FUNC NAME:"<<name<<endl;
 
     int intPrtLen = 0;
     int *cur = (int*)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1);
@@ -52,16 +56,29 @@ int processRequests(int socket, fd_set active_fd_set){
         ++intPrtLen;
     }
     ++intPrtLen;
-    unsigned int intPrt[intPrtLen];
+    int *intPrt = new int[intPrtLen];
     memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
+
     for (int i = 0;i < intPrtLen;i++) {
         cout << intPrt[i] <<endl;
     }
+    delete recvBuf;
     // end of parsing---------------------------
 
 
-    // TODO add to database
+    struct FunctionSignature function = {name, intPrt};
+    stringstream ss;
+    ss << hostname << ":" << portno;
+    serverMap[function] = ss.str();
+    delete intPrt;
 
+    for (map<struct FunctionSignature, string>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
+        cout << it->first.name << ", ";
+        for (int *i = it->first.argTypes; *i != 0; i++) {
+            cout << (unsigned int)*i << " ";
+        } cout << " => ";
+        cout << it->second << endl;
+    }
 
     bool addSuccess = true;
 
