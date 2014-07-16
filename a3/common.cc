@@ -43,7 +43,7 @@ int recvAll(int s, char *buf, int *len) {
 }
 
 bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {
-    int result = strcmp(x.name, y.name);
+    int result = x.name.compare(y.name);
     if (result != 0) {
         return result;
     }

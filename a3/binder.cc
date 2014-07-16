@@ -13,7 +13,7 @@
 
 using namespace std;
 
-map<struct ProcedureSignature, struct ServerInfo> serverMap;
+static map<struct ProcedureSignature, struct ServerInfo> serverMap;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
@@ -79,7 +79,39 @@ int processRequests(int socket){
             cerr << "duplicate function" << endl;
             msgType = REGISTER_FAILURE;
         }
+
+
+
+
+
+        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
+            cout << it->first.name << ", ";
+            for (int *i = it->first.argTypes; *i != 0; i++) {
+                cout << (unsigned int)*i << " ";
+            } cout << " => ";
+            cout << it->second.host << it->second.port << endl;
+        }
+
+
+
         serverMap[function] = serverInfo;
+
+
+
+        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
+            cout << it->first.name << ", ";
+            for (int *i = it->first.argTypes; *i != 0; i++) {
+                cout << (unsigned int)*i << " ";
+            } cout << " => ";
+            cout << it->second.host << it->second.port << endl;
+        }
+
+
+
+
+
+
+
 
         size[0] = sizeof(msgType);
         if (send(socket, size, sizeof(size), 0) < 0) {
@@ -127,14 +159,6 @@ int processRequests(int socket){
         struct ProcedureSignature function = {name, argTypes};
         map<struct ProcedureSignature, struct ServerInfo>::iterator findIt = serverMap.find(function);
 
-        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
-            cout << it->first.name << ", ";
-            for (int *i = it->first.argTypes; *i != 0; i++) {
-                cout << (unsigned int)*i << " ";
-            } cout << " => ";
-            cout << it->second.host << it->second.port << endl;
-        }
-
         int size[1];
         char *sendBuf;
         if (findIt == serverMap.end()) {
@@ -153,7 +177,7 @@ int processRequests(int socket){
             memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
         } else {
             msgType = LOC_SUCCESS;
-            size[0] = sizeof(LOC_SUCCESS) + strlen(findIt->second.host) + 1 + sizeof(unsigned short);
+            size[0] = sizeof(LOC_SUCCESS) + findIt->second.host.length() + 1 + sizeof(unsigned short);
 
             if (send(socket, size, sizeof(size), 0) < 0) {
                 cerr << "write failed1" << endl;
@@ -164,10 +188,13 @@ int processRequests(int socket){
             memcpy(sendBuf, &msgType, sizeof(msgType));
 
             struct ServerInfo serverInfo = findIt->second;
+            char *host = new char[serverInfo.host.length() + 1];
+            strcpy(host, serverInfo.host.c_str());
+
             memcpy(sendBuf + sizeof(msgType),
-                serverInfo.host, strlen(serverInfo.host) + 1);
+                host, serverInfo.host.length() + 1);
             unsigned short port = serverInfo.port;
-            memcpy(sendBuf + sizeof(msgType) + strlen(serverInfo.host) + 1,
+            memcpy(sendBuf + sizeof(msgType) + serverInfo.host.length() + 1,
                 &port, sizeof(unsigned short));
         }
 
