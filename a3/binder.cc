@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <iostream>
 
+#include "common.h"
+
 using namespace std;
 
 void exit_and_close(int code, int sockfd){
@@ -12,7 +14,77 @@ void exit_and_close(int code, int sockfd){
 }
 
 int processRequests(int socket, fd_set active_fd_set){
+    // waiting for result
+    int size[1];
+    if (recv(socket, size, sizeof(size), 0) < 0) {
+        cerr << "receive failed3" << endl;
+        exit_and_close(-1, socket);
+    }
+    char *recvBuf = new char[size[0]];
+    if (recvAll(socket, recvBuf, size) < 0) {
+        cerr << "receive failed4" << endl;
+        exit_and_close(-1, socket);
+    }
 
+    int msgType;
+    memcpy(&msgType, recvBuf, sizeof(int));
+    cout <<"type:"<< msgType << endl;
+
+    int hostnameLen = strlen(recvBuf + 4);
+    char hostname[hostnameLen];
+    memcpy(hostname, recvBuf + 4, hostnameLen);
+    hostname[hostnameLen] = '\0';
+    cout <<hostname<<endl;
+
+    unsigned short portno;
+    memcpy(&portno, recvBuf + 4 + hostnameLen + 1, sizeof(short));
+    cout <<portno<<endl;
+
+    int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
+    char name[nameLen];
+    memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
+    name[nameLen] = '\0';
+    cout <<name<<endl;
+
+    int intPrtLen = 0;
+    int *cur = (int*)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1);
+    while (cur[intPrtLen] != 0) {
+        ++intPrtLen;
+    }
+    ++intPrtLen;
+    unsigned int intPrt[intPrtLen];
+    memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
+    for (int i = 0;i < intPrtLen;i++) {
+        cout << intPrt[i] <<endl;
+    }
+    // end of parsing---------------------------
+
+
+    // TODO add to database
+
+
+    bool addSuccess = true;
+
+    size[0] = sizeof(msgType);
+    if (send(socket, size, sizeof(size), 0) < 0) {
+        cerr << "write failed1" << endl;
+        return -1;
+    }
+
+    char *sendBuf = new char[size[0]];
+
+    if (addSuccess) {
+        msgType = REGISTER_SUCCESS;
+    } else {
+        msgType = REGISTER_FAILURE;
+    }
+
+    memcpy(sendBuf, &msgType, sizeof(msgType));
+    if (sendAll(socket, sendBuf, size) < 0) {
+        cerr << "write failed2" << endl;
+        return -1;
+    }
+    delete sendBuf;
 }
 
 int main() {
@@ -35,7 +107,7 @@ int main() {
     }
     cout << "BINDER_ADDRESS " << hostname <<endl;
 
-    listen(sockfd, 0);
+    listen(sockfd, 128);
 
     // Get port number
     socklen_t len = sizeof(addr);
@@ -72,7 +144,7 @@ int main() {
 
                     FD_SET (newsockfd, &active_fd_set);
                 } else {
-
+                    processRequests(i, active_fd_set);
 
                     // If on a client socket
                     // char* request_msg;

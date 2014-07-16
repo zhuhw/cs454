@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <map>
 
 #include "rpc.h"
 #include "common.h"
@@ -14,7 +15,7 @@ using namespace std;
 
 static int serverSocket;
 static int listenSocket;
-
+// static map<, skeleton> skeletonMap;
 
 int rpcInit() {
     char *binder_address = getenv("BINDER_ADDRESS");
@@ -79,10 +80,12 @@ int rpcInit() {
         return -1;
     }
 
+    cout << "rpcInit done" << endl;
     return 0;
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
+    cout << "rpcRegister start" << endl;
     // prepare message content to be sent
     char hostname[128];
     gethostname(hostname, 128);
@@ -107,8 +110,9 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     }
 
     char *sendBuf = new char[size[0]];
+    int msgType = REGISTER;
     memcpy(sendBuf,
-        (int)REGISTER, sizeof(REGISTER));
+        &msgType, sizeof(msgType));
     memcpy(sendBuf + sizeof(REGISTER),
         hostname, strlen(hostname) + 1);
     memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1,
@@ -138,8 +142,12 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     memcpy(&response, recvBuf, size[0]);
     delete recvBuf;
     if (response == REGISTER_SUCCESS) {
+        // TODO add to db
+        cout<<"success"<<endl;
         return 0;
     } else {
+        cout<<"fail"<<endl;
+
         return 1;
     }
 

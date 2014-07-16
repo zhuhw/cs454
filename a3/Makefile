@@ -10,7 +10,7 @@ SERVER_TARGET = server
 CLIENT_OBJECTS = client1.o
 CLIENT_TARGET = client
 
-BINDER_OBJECTS = binder.o
+BINDER_OBJECTS = binder.o common.o
 BINDER_TARGET = binder
 
 ###########################################################
