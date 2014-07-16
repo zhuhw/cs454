@@ -26,40 +26,10 @@ int rpcCall(char* name, int* argTypes, void** args) {
     }
 
     //-----------------------------------------
-    struct hostent *host;
-    struct sockaddr_in siServer;
+    // request server loc
+    clientSocket = connectTo(binder_address, binder_port);
 
-    // create client socket
-    if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        cerr << "Cannot create socket" << endl;
-        return -1;
-    }
-
-    // set client info, port is implicitly set to 0 by memset
-    memset((char *)&siServer, 0, sizeof(siServer));
-    siServer.sin_family = AF_INET;
-    siServer.sin_port = htons(atoi(binder_port));
-
-    // connect to server
-    host = gethostbyname(binder_address);
-    if (!host) {
-        cout << "could not resolve hostname!" << endl;
-        return -1;
-    }
-
-    memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
-
-    if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
-        cerr << "Connection Failed" << endl;
-        return -1;
-    }
-
-
-    unsigned int argTypesSize = 0;
-    while (argTypes[argTypesSize] != 0) {
-        ++argTypesSize;
-    }
-    ++argTypesSize;
+    int argTypesSize = ptrSize(argTypes);
 
     int size[1];
     size[0] = sizeof(LOC_REQUEST) + strlen(name) + 1 + sizeof(int) * argTypesSize;
@@ -99,29 +69,33 @@ int rpcCall(char* name, int* argTypes, void** args) {
     cout <<"RESPONSE:"<<(int)response<<endl;
     char *hostname;
     unsigned short portno;
-    if (response == LOC_SUCCESS) {
-        cout<<"success"<<endl;
-        char *cur = recvBuf + sizeof(LOC_SUCCESS);
-        int hostnameSize = 0;
-        while (cur[hostnameSize] != 0) {
-            ++hostnameSize;
-        }
-        ++hostnameSize;
-        cout << "hostnameSize:" <<hostnameSize<<endl;
-        hostname = new char[hostnameSize];
-
-        memcpy(hostname, recvBuf + sizeof(LOC_SUCCESS), hostnameSize);
-        memcpy(&portno, recvBuf + sizeof(LOC_SUCCESS) + hostnameSize, sizeof(unsigned short));
-
-        cout <<"HOST:PORT: "<<hostname<<":"<<portno<<endl;
-
-    } else {
+    if (response == LOC_FAILURE) {
         int reason;
         memcpy(&reason, recvBuf + sizeof(LOC_FAILURE), sizeof(int));
         cout<<"LOC_FAILURE reason code: "<<reason<<endl;
         return reason;
     }
+
+    cout<<"success"<<endl;
+    int hostnameSize = ptrSize(recvBuf + sizeof(LOC_SUCCESS));
+    cout << "hostnameSize:" <<hostnameSize<<endl;
+    hostname = new char[hostnameSize];
+
+    memcpy(hostname, recvBuf + sizeof(LOC_SUCCESS), hostnameSize);
+    memcpy(&portno, recvBuf + sizeof(LOC_SUCCESS) + hostnameSize, sizeof(unsigned short));
+
     delete recvBuf;
+
+    // send real request
+    cout <<"HOST:PORT: "<<hostname<<":"<<portno<<endl;
+
+    // char portnoStr[6];
+    // strcpy(portnoStr, to_string(portno).c_str());
+    // int sockfd = connectTo(hostname, portnoStr);
+    //
+    //
+    // size[0] = sizeof(EXECUTE) + ptrSize(argTypes);
+
 
     return 0;
 }

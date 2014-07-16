@@ -54,12 +54,8 @@ int processRequests(int socket){
         name[nameLen] = '\0';
         cout <<"FUNC NAME:"<<name<<endl;
 
-        int intPrtLen = 0;
-        int *cur = (int*)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1);
-        while (cur[intPrtLen] != 0) {
-            ++intPrtLen;
-        }
-        ++intPrtLen;
+
+        int intPrtLen = ptrSize((int *)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1));
         int *intPrt = new int[intPrtLen];
         memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
 
@@ -106,24 +102,16 @@ int processRequests(int socket){
 
     } else if (msgType == LOC_REQUEST) {
         cout<<"LOC_REQUEST"<<endl;
-        unsigned int nameSize = 0;
         char *cur = recvBuf + sizeof(LOC_REQUEST);
-        while (cur[nameSize] != 0) {
-            ++nameSize;
-        }
-        ++nameSize;
+        int nameSize = ptrSize(cur);
 
         char* name = new char[nameSize];
         memcpy(name, cur, nameSize);
         name[nameSize] = '\0';
         cout<<"NAME:"<<name<<endl;
 
-        int argTypesSize = 0;
         int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
-        while (intCur[argTypesSize] != 0) {
-            ++argTypesSize;
-        }
-        ++argTypesSize;
+        int argTypesSize = ptrSize(intCur);
         int *argTypes = new int[argTypesSize];
         memcpy(argTypes, intCur, argTypesSize * sizeof(int));
 

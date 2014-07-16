@@ -31,4 +31,9 @@ struct ServerInfo {
     unsigned short port;
 };
 
+int connectTo(char *address, char* port);
+
+int ptrSize(char *ptr);
+int ptrSize(int *ptr);
+
 #endif

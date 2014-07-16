@@ -1,6 +1,15 @@
 #include "common.h"
+
 #include <sys/socket.h>
 #include <string.h>
+#include <iostream>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -60,4 +69,53 @@ bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {
     }
 
     return false;
+}
+
+int connectTo(char *address, char* port) {
+    int clientSocket;
+    struct hostent *host;
+    struct sockaddr_in siServer;
+
+    // create client socket
+    if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        cerr << "Cannot create socket" << endl;
+        exit(-1);
+    }
+
+    // set client info, port is implicitly set to 0 by memset
+    memset((char *)&siServer, 0, sizeof(siServer));
+    siServer.sin_family = AF_INET;
+    siServer.sin_port = htons(atoi(port));
+
+    // connect to server
+    host = gethostbyname(address);
+    if (!host) {
+        cout << "could not resolve hostname!" << endl;
+        exit(-1);
+    }
+
+    memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
+
+    if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
+        cerr << "Connection Failed" << endl;
+        exit(-1);
+    }
+
+    return clientSocket;
+}
+
+int ptrSize(char *ptr) {
+    int size = 0;
+    while (ptr[size] != 0) {
+        ++size;
+    }
+    return size + 1;
+}
+
+int ptrSize(int *ptr) {
+    int size = 0;
+    while (ptr[size] != 0) {
+        ++size;
+    }
+    return size + 1;
 }
