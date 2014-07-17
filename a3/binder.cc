@@ -9,28 +9,38 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "function_db.h"
 #include "common.h"
 
 using namespace std;
 
 map<struct ProcedureSignature, struct ServerInfo> serverMap;
+FunctionDB function_db;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
     exit(code);
 }
 
-int processRequests(int socket){
+void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
+    cout << "close and clean " << endl;
+    close(socket);
+    FD_CLR(socket, active_fd_set);
+}
+
+int processRequests(int socket, fd_set *active_fd_set){
     // waiting for result
     int size[1];
     if (recv(socket, size, sizeof(size), 0) < 0) {
         cerr << "receive failed3" << endl;
-        exit_and_close(-1, socket);
+        // socket closed, remove it from active_fd_set
+        close_and_clean_fd_set(socket, active_fd_set);
     }
+    cout << "123 " << endl;
     char *recvBuf = new char[size[0]];
     if (recvAll(socket, recvBuf, size) < 0) {
         cerr << "receive failed4" << endl;
-        exit_and_close(-1, socket);
+        close_and_clean_fd_set(socket, active_fd_set);
     }
 
     int msgType;
@@ -73,13 +83,9 @@ int processRequests(int socket){
         struct ProcedureSignature function = {name, intPrt};
         struct ServerInfo serverInfo = {hostname, portno};
 
-        if (serverMap.find(function) == serverMap.end()) {
-            msgType = REGISTER_SUCCESS;
-        } else {
-            cerr << "duplicate function" << endl;
-            msgType = REGISTER_FAILURE;
-        }
-        serverMap[function] = serverInfo;
+        function_db.register_function(function, serverInfo);
+
+        msgType = REGISTER_SUCCESS;
 
         size[0] = sizeof(msgType);
         if (send(socket, size, sizeof(size), 0) < 0) {
@@ -97,6 +103,7 @@ int processRequests(int socket){
         delete sendBuf;
 
     } else if (msgType == LOC_REQUEST) {
+        cout<<"-------------------------------------"<<endl;
         cout<<"LOC_REQUEST"<<endl;
         unsigned int nameSize = 0;
         char *cur = recvBuf + sizeof(LOC_REQUEST);
@@ -125,19 +132,13 @@ int processRequests(int socket){
         } cout<<endl;
 
         struct ProcedureSignature function = {name, argTypes};
-        map<struct ProcedureSignature, struct ServerInfo>::iterator findIt = serverMap.find(function);
 
-        for (map<struct ProcedureSignature, struct ServerInfo>::iterator it=serverMap.begin(); it!=serverMap.end(); ++it) {
-            cout << it->first.name << ", ";
-            for (int *i = it->first.argTypes; *i != 0; i++) {
-                cout << (unsigned int)*i << " ";
-            } cout << " => ";
-            cout << it->second.host << it->second.port << endl;
-        }
+        ServerInfo serverInfo = function_db.locate(function);
 
         int size[1];
         char *sendBuf;
-        if (findIt == serverMap.end()) {
+        if (serverInfo.host == NULL) {
+            cout << "LOC_FAILURE" <<endl;
             msgType = LOC_FAILURE;
             size[0] = sizeof(LOC_FAILURE) + sizeof(int);
 
@@ -152,8 +153,9 @@ int processRequests(int socket){
             int reasonCode = -1;
             memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
         } else {
+            cout << "LOC_SUCCESS" <<endl;
             msgType = LOC_SUCCESS;
-            size[0] = sizeof(LOC_SUCCESS) + strlen(findIt->second.host) + 1 + sizeof(unsigned short);
+            size[0] = sizeof(LOC_SUCCESS) + strlen(serverInfo.host) + 1 + sizeof(unsigned short);
 
             if (send(socket, size, sizeof(size), 0) < 0) {
                 cerr << "write failed1" << endl;
@@ -163,7 +165,6 @@ int processRequests(int socket){
             sendBuf = new char[size[0]];
             memcpy(sendBuf, &msgType, sizeof(msgType));
 
-            struct ServerInfo serverInfo = findIt->second;
             memcpy(sendBuf + sizeof(msgType),
                 serverInfo.host, strlen(serverInfo.host) + 1);
             unsigned short port = serverInfo.port;
@@ -175,6 +176,8 @@ int processRequests(int socket){
             cerr << "write failed2" << endl;
             return -1;
         }
+
+        cout << "finish sending" <<endl;
 
         delete sendBuf;
         delete recvBuf;
@@ -222,47 +225,37 @@ int main() {
     }
     cout << "BINDER_PORT " << ntohs(addr.sin_port) << endl;
 
-    fd_set readfds;
-    int maxSocketFd = 1;
-    vector<int> clientSockets;
-    // Wait for message from client
-    for (;;) {
-        // clear read socket sets
-        FD_ZERO(&readfds);
+    fd_set active_fd_set, read_fd_set;
+    FD_ZERO (&active_fd_set);
+    FD_SET (sockfd, &active_fd_set);
+    int fdmax = sockfd;
 
-        // add server socket to the read set explicity
-        FD_SET(sockfd, &readfds);
-        maxSocketFd = sockfd + 1;
-
-        // add all established connection sockets to read set
-        for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
-            if (*it > 0) {
-                FD_SET(*it, &readfds);
-            }
-
-            if (*it >= maxSocketFd) {
-                maxSocketFd = *it + 1;
-            }
+    while(1) {
+        read_fd_set = active_fd_set;
+        if (select (fdmax+1, &read_fd_set, NULL, NULL, NULL) < 0) {
+            cerr << "Error: select." << endl;
+            exit_and_close(-1, sockfd);
         }
 
-        // some error on select()
-        if (select(maxSocketFd, &readfds, NULL, NULL, NULL) < 0) {
-            cerr << "Select error" << endl;
-        }
+        for (int curSocket = 0; curSocket <= fdmax; ++curSocket) {
+            if (FD_ISSET(curSocket, &read_fd_set)) {
+                if (curSocket == sockfd) {
+                    cout << "create socket "<< endl;
+                    // Create new connection
+                    int newsockfd = accept(sockfd, (struct sockaddr*)NULL, NULL);
+                    if (newsockfd < 0) {
+                        cerr << "Accept error" << endl;
+                        return 0;
+                    }
+                    if (newsockfd > fdmax) {
+                        fdmax = newsockfd;
+                    }
 
-        if (FD_ISSET(sockfd, &readfds)) {
-            // New connection
-            int fd = accept(sockfd, (struct sockaddr*)NULL, NULL);
-            if (fd < 0) {
-                cerr << "Accept error" << endl;
-                return 0;
-            }
-            clientSockets.push_back(fd);
-        }
-
-        for (vector<int>::iterator it = clientSockets.begin(); it != clientSockets.end(); ++it) {
-            if (FD_ISSET(*it, &readfds)) {
-                processRequests(*it);
+                    FD_SET(newsockfd, &active_fd_set);
+                } else {
+                    cout << "process" << endl;
+                    processRequests(curSocket, &active_fd_set);
+                }
             }
         }
     }

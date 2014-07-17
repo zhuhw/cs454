@@ -2,7 +2,7 @@
 #include "server_function_skels.h"
 
 int main(int argc, char *argv[]) {
-  
+
   /* create sockets and connect to the binder */
   rpcInit();
 
@@ -12,11 +12,13 @@ int main(int argc, char *argv[]) {
   int count2 = 3;
   int count3 = 1;
   int count4 = 1;
+  int count5 = 1;
   int argTypes0[count0 + 1];
   int argTypes1[count1 + 1];
   int argTypes2[count2 + 1];
   int argTypes3[count3 + 1];
   int argTypes4[count4 + 1];
+  int argTypes5[count5 + 1];
 
   argTypes0[0] = (1 << ARG_OUTPUT) | (ARG_INT << 16);
   argTypes0[1] = (1 << ARG_INPUT) | (ARG_INT << 16);
@@ -30,7 +32,7 @@ int main(int argc, char *argv[]) {
   argTypes1[4] = (1 << ARG_INPUT) | (ARG_LONG << 16);
   argTypes1[5] = 0;
 
-  /* 
+  /*
    * the length in argTypes2[0] doesn't have to be 100,
    * the server doesn't know the actual length of this argument
    */
@@ -40,7 +42,7 @@ int main(int argc, char *argv[]) {
   argTypes2[3] = 0;
 
   /*
-   * f3 takes an array of long. 
+   * f3 takes an array of long.
   */
   argTypes3[0] = (1 << ARG_OUTPUT) | (1 << ARG_INPUT) | (ARG_LONG << 16) | 11;
   argTypes3[1] = 0;
@@ -49,7 +51,11 @@ int main(int argc, char *argv[]) {
   argTypes4[0] = (1 << ARG_INPUT) | (ARG_CHAR << 16) | 28;
   argTypes4[1] = 0;
 
-  /* 
+  /* same function with different length */
+  argTypes5[0] = (1 << ARG_INPUT) | (ARG_CHAR << 16) | 29;
+  argTypes5[1] = 0;
+
+  /*
    * register server functions f0~f4
    */
   rpcRegister("f0", argTypes0, *f0_Skel);
@@ -57,6 +63,7 @@ int main(int argc, char *argv[]) {
   rpcRegister("f2", argTypes2, *f2_Skel);
   rpcRegister("f3", argTypes3, *f3_Skel);
   rpcRegister("f4", argTypes4, *f4_Skel);
+  rpcRegister("f4", argTypes5, *f4_Skel);
 
   /* call rpcExecute */
   rpcExecute();
