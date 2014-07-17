@@ -35,7 +35,7 @@ int processRequests(int socket, fd_set *active_fd_set){
         // socket closed, remove it from active_fd_set
         close_and_clean_fd_set(socket, active_fd_set);
     }
-    cout << "123 " << endl;
+    cout << "from socket" << socket << " size:"<< size[0] << endl;
     char *recvBuf = new char[size[0]];
     if (recvAll(socket, recvBuf, size) < 0) {
         cerr << "receive failed4" << endl;
@@ -227,6 +227,8 @@ int main() {
             cerr << "Error: select." << endl;
             exit_and_close(-1, sockfd);
         }
+
+        cout << "new round of select: " << endl;
 
         for (int curSocket = 0; curSocket <= fdmax; ++curSocket) {
             if (FD_ISSET(curSocket, &read_fd_set)) {

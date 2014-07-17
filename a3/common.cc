@@ -39,6 +39,7 @@ int recvAll(int s, char *buf, int *len) {
 
     while(total < *len) {
         n = recv(s, buf+total, bytesleft, 0);
+        cout << "recvAll:" << total << " " << n << endl;
         if (n == -1) {
             break;
         }

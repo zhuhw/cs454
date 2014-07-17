@@ -137,7 +137,7 @@ int rpcExecute() {
         } cout << '\n';
     }
 
-    for (;;) {}
-        
+    // for (;;) {}
+
     return 0;
 }

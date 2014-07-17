@@ -38,6 +38,8 @@ int rpcCall(char* name, int* argTypes, void** args) {
         return -1;
     }
 
+    cout << "send 1:" << size[0] <<endl;
+
     char *sendBuf = new char[size[0]];
     int msgType = LOC_REQUEST;
     memcpy(sendBuf,
@@ -95,6 +97,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
     //
     //
     // size[0] = sizeof(EXECUTE) + ptrSize(argTypes);
+    close(clientSocket);
 
 
     return 0;
