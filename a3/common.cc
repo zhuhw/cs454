@@ -29,7 +29,7 @@ int sendAll(int s, char *buf, int *len) {
 
     *len = total; // return number actually sent here
 
-    return (n == -1) ? -1 : 0; // return -1 on failure, 0 on success
+    return (n == -1) ? n : total; // return -1 on failure, 0 on success
 }
 
 int recvAll(int s, char *buf, int *len) {
@@ -40,7 +40,7 @@ int recvAll(int s, char *buf, int *len) {
     while(total < *len) {
         n = recv(s, buf+total, bytesleft, 0);
         cout << "recvAll:" << total << " " << n << endl;
-        if (n == -1) {
+        if (n <= 0) {
             break;
         }
         total += n;
@@ -49,7 +49,7 @@ int recvAll(int s, char *buf, int *len) {
 
     *len = total; // return number actually received here
 
-    return (n == -1) ? -1 : 0; // return -1 on failure, 0 on success
+    return (n <= 0) ? n : total; // return -1 on failure, 0 on success
 }
 
 bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {

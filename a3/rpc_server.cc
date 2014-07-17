@@ -102,12 +102,12 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     delete sendBuf;
 
     // waiting for result
-    if (recv(serverSocket, size, sizeof(size), 0) < 0) {
+    if (recv(serverSocket, size, sizeof(size), 0) <= 0) {
         cerr << "receive failed3" << endl;
         return -1;
     }
     char *recvBuf = new char[size[0]];
-    if (recvAll(serverSocket, recvBuf, size) < 0) {
+    if (recvAll(serverSocket, recvBuf, size) <= 0) {
         cerr << "receive failed4" << endl;
         return -1;
     }

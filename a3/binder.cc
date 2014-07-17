@@ -30,16 +30,18 @@ void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
 int processRequests(int socket, fd_set *active_fd_set){
     // waiting for result
     int size[1];
-    if (recv(socket, size, sizeof(size), 0) < 0) {
+    if (recv(socket, size, sizeof(size), 0) <= 0) {
         cerr << "receive failed3" << endl;
         // socket closed, remove it from active_fd_set
         close_and_clean_fd_set(socket, active_fd_set);
+        return 0;
     }
     cout << "from socket" << socket << " size:"<< size[0] << endl;
     char *recvBuf = new char[size[0]];
-    if (recvAll(socket, recvBuf, size) < 0) {
+    if (recvAll(socket, recvBuf, size) <= 0) {
         cerr << "receive failed4" << endl;
         close_and_clean_fd_set(socket, active_fd_set);
+        return 0;
     }
 
     int msgType;

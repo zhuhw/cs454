@@ -56,12 +56,12 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
     cout<<"finish sending"<<endl;
     // waiting for result
-    if (recv(clientSocket, size, sizeof(size), 0) < 0) {
+    if (recv(clientSocket, size, sizeof(size), 0) <= 0) {
         cerr << "receive failed3" << endl;
         return -1;
     }
     char *recvBuf = new char[size[0]];
-    if (recvAll(clientSocket, recvBuf, size) < 0) {
+    if (recvAll(clientSocket, recvBuf, size) <= 0) {
         cerr << "receive failed4" << endl;
         return -1;
     }
