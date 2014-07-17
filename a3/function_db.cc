@@ -16,7 +16,7 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
         cout << "key found " << endl;
 
         for (std::list<ServerInfo>::iterator it= info_list->begin(); it != info_list->end(); ++it){
-            if (strcmp(it->host, info.host) == 0 && it->port == info.port){
+            if (it->host == info.host && it->port == info.port){
                 cout << "overload!" <<endl;
             }
         }
@@ -31,7 +31,7 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
 struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
     if (function_map.count(signatrue) == 0) {
         ServerInfo info;
-        info.host = NULL;
+        info.host = "";
 
         return info;
     } else {

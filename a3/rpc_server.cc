@@ -29,33 +29,9 @@ int rpcInit() {
     }
 
     //-----------------------------------------
-    struct hostent *host;
-    struct sockaddr_in siServer;
 
-    // create client socket
-    if ((serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        cerr << "Cannot create socket" << endl;
-        return -1;
-    }
+    serverSocket = connectTo(binder_address, binder_port);
 
-    // set client info, port is implicitly set to 0 by memset
-    memset((char *)&siServer, 0, sizeof(siServer));
-    siServer.sin_family = AF_INET;
-    siServer.sin_port = htons(atoi(binder_port));
-
-    // connect to server
-    host = gethostbyname(binder_address);
-    if (!host) {
-        cout << "could not resolve hostname!" << endl;
-        return -1;
-    }
-
-    memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
-
-    if (connect(serverSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
-        cerr << "Connection Failed" << endl;
-        return -1;
-    }
     //-----------------------------------------
     struct sockaddr_in siListen;
 
@@ -97,11 +73,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     getsockname(serverSocket, (struct sockaddr *)&siServer, &siLen);
     unsigned short portNum = ntohs(siServer.sin_port);
 
-    unsigned int argTypesSize = 0;
-    while (argTypes[argTypesSize] != 0) {
-        ++argTypesSize;
-    }
-    ++argTypesSize;
+    int argTypesSize = ptrSize(argTypes);
 
     // sending message
     int size[1];
@@ -166,6 +138,6 @@ int rpcExecute() {
     }
 
     for (;;) {}
-
+        
     return 0;
 }

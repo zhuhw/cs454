@@ -20,15 +20,20 @@ extern int sendAll(int s, char *buf, int *len);
 extern int recvAll(int s, char *buf, int *len);
 
 struct ProcedureSignature {
-    char *name;
+    std::string name;
     int *argTypes;
 };
 
 bool operator <(const ProcedureSignature& x, const ProcedureSignature& y);
 
 struct ServerInfo {
-    char* host;
+    std::string host;
     unsigned short port;
 };
+
+int connectTo(char *address, char* port);
+
+int ptrSize(char *ptr);
+int ptrSize(int *ptr);
 
 #endif
