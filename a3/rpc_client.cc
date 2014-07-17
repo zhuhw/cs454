@@ -87,18 +87,32 @@ int rpcCall(char* name, int* argTypes, void** args) {
     memcpy(&portno, recvBuf + sizeof(LOC_SUCCESS) + hostnameSize, sizeof(unsigned short));
 
     delete recvBuf;
+    close(clientSocket);
 
     // send real request
     cout <<"HOST:PORT: "<<hostname<<":"<<portno<<endl;
 
     // char portnoStr[6];
     // strcpy(portnoStr, to_string(portno).c_str());
-    // int sockfd = connectTo(hostname, portnoStr);
-    //
-    //
-    // size[0] = sizeof(EXECUTE) + ptrSize(argTypes);
-    close(clientSocket);
 
+    // int sockfd = connectTo(hostname, portnoStr);
+
+    cout << "-----"<<endl;
+    int ppSize = 0;
+    for (int i = 0; i < ptrSize(argTypes); i++) { // for each arg
+        int argType = (argTypes[i] >> 16) & 0xFF;
+        unsigned int argSize = argTypes[i] & 0xFFFF;
+        cout << "t:"<<argType << " s:"<<argSize << endl;
+
+        if (argSize == 0) {
+
+        } else {
+
+        }
+    }
+    cout << "-----"<<endl;
+
+    size[0] = sizeof(EXECUTE) + ptrSize(argTypes);
 
     return 0;
 }
