@@ -86,7 +86,7 @@ int processRequests(int socket, fd_set *active_fd_set){
         for (int i = 0;i < intPrtLen;i++) {
             cout << (unsigned int)intPrt[i] << " ";
         } cout<<endl;
-        delete recvBuf;
+        delete []recvBuf;
         // end of parsing---------------------------
 
         struct ProcedureSignature function = {name, intPrt};
@@ -116,7 +116,7 @@ int processRequests(int socket, fd_set *active_fd_set){
             cerr << "write failed2" << endl;
             exit_and_close(-1, socket);
         }
-        delete sendBuf;
+        delete []sendBuf;
 
     } else if (msgType == LOC_REQUEST) {
         cout<<"-------------------------------------"<<endl;
@@ -191,8 +191,8 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         cout << "finish sending" <<endl;
 
-        delete sendBuf;
-        delete recvBuf;
+        delete []sendBuf;
+        delete []recvBuf;
     } else if (msgType == TERMINATE) {
         cout << "TERMINATE" <<endl;
         int size[1];
@@ -209,7 +209,7 @@ int processRequests(int socket, fd_set *active_fd_set){
                 cerr << "write failed1" << endl;
             }
 
-            if (sendAll(socket, sendBuf, size) < 0) {
+            if (sendAll(server_socket, sendBuf, size) < 0) {
                 cerr << "write failed2" << endl;
                 return -1;
             }

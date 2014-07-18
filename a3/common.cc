@@ -41,7 +41,7 @@ int recvAll(int s, char *buf, int *len) {
 
     while(total < *len) {
         n = recv(s, buf+total, bytesleft, 0);
-        cout << "recvAll:" << total << " " << n << endl;
+        // cout << "recvAll:" << total << " " << n << endl;
         if (n <= 0) {
             break;
         }
@@ -130,7 +130,7 @@ int connectTo(char *address, unsigned short port) {
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_port = htons(port);
-    cout << address << " " << port << endl;
+    // cout << address << " " << port << endl;
     return connectTo(address, siServer);
 }
 
