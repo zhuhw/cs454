@@ -99,22 +99,21 @@ int connectTo(const char* address, sockaddr_in siServer) {
         exit(-1);
     }
 
-    // set client info, port is implicitly set to 0 by memset
-    memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
 
     // connect to server
     host = gethostbyname(address);
     if (!host) {
         cout << "could not resolve hostname!" << endl;
-        exit(-1);
+        return -1;
     }
 
     memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
 
+
     if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
         cerr << "Connection Failed" << endl;
-        exit(-1);
+        return -1;
     }
 
     return clientSocket;
@@ -122,12 +121,17 @@ int connectTo(const char* address, sockaddr_in siServer) {
 
 int connectTo(char *address, char* port) {
     struct sockaddr_in siServer;
+    // set client info, port is implicitly set to 0 by memset
+    memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_port = htons(atoi(port));
+    cout << address << " " << port << endl;
     return connectTo(address, siServer);
 }
 
 int connectTo(struct ServerInfo info) {
     struct sockaddr_in siServer;
+    // set client info, port is implicitly set to 0 by memset
+    memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_port = info.port;
     return connectTo(info.host.c_str(), siServer);
 }

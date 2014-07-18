@@ -78,7 +78,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     // sending message
     int size[1];
     size[0] = sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1 + sizeof(int) * argTypesSize;
-    if (send(serverSocket, size, sizeof(size), 0) < 0) {
+    if (send(serverSocket, size, sizeof(MessageType), 0) < 0) {
         cerr << "write failed1" << endl;
         return -1;
     }

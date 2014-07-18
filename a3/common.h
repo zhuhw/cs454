@@ -16,6 +16,11 @@ enum MessageType {
     TERMINATE
 };
 
+enum ReasonCode {
+    TERMINATE_SUCCESS,
+    TERMINATE_CALL_NOT_FROM_BINDER
+};
+
 extern int sendAll(int s, char *buf, int *len);
 extern int recvAll(int s, char *buf, int *len);
 

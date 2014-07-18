@@ -33,7 +33,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
     int size[1];
     size[0] = sizeof(LOC_REQUEST) + strlen(name) + 1 + sizeof(int) * argTypesSize;
-    if (send(clientSocket, size, sizeof(size), 0) < 0) {
+    if (send(clientSocket, size, sizeof(MessageType), 0) < 0) {
         cerr << "write failed1" << endl;
         return -1;
     }
@@ -118,5 +118,33 @@ int rpcCall(char* name, int* argTypes, void** args) {
 }
 
 int rpcTerminate() {
+    int binderSocket;
+
+    char *binder_address = getenv("BINDER_ADDRESS");
+    char *binder_port = getenv("BINDER_PORT");
+
+    if (binder_address == 0 || binder_port == 0) {
+        cerr << "Error: BINDER_ADDRESS or BINDER_PORT is empty." << endl;
+        return -1;
+    }
+
+    binderSocket = connectTo(binder_address, binder_port);
+
+    int size[1];
+    size[0] = sizeof(TERMINATE);
+
+    if (send(binderSocket, size, sizeof(MessageType), 0) < 0) {
+        cerr << "write failed1" << endl;
+        return -1;
+    }
+
+    char *sendBuf = new char[size[0]];
+    int msgType = TERMINATE;
+    memcpy(sendBuf, &msgType, sizeof(msgType));
+    if (sendAll(binderSocket, sendBuf, size) < 0) {
+        cerr << "write failed2" << endl;
+        return -1;
+    }
+
     return 0;
 }
