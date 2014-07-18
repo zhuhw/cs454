@@ -146,6 +146,14 @@ int rpcCall(char* name, int* argTypes, void** args) {
     memcpy(&msgType, recvBuf, sizeof(int));
     cout <<"TYPE:"<< msgType << endl;
 
+    if (msgType == EXECUTE_FAILURE) {
+        int reason;
+        memcpy(&reason, recvBuf + sizeof(EXECUTE_FAILURE), sizeof(int));
+        cout<<"EXECUTE_FAILURE reason code: "<<reason<<endl;
+        delete []recvBuf;
+        return reason;
+    }
+
     if (msgType == EXECUTE_SUCCESS) {
         char *cur = recvBuf + sizeof(msgType);
         int nameSize = ptrSize(cur);
