@@ -23,7 +23,8 @@ enum ReasonCode {
     UNKNOWN_MSG_TYPE = -4,
     TERMINATE_CALL_NOT_FROM_BINDER = -5,
     LOC_FAILURE_SERVER_NOT_FOUND = -6,
-    SKELETON_FAILURE = -7
+    SKELETON_FAILURE = -7,
+    REGISTER_DUPLICATE = -8
 };
 
 extern int sendAll(int s, char *buf, int *len);

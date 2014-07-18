@@ -246,17 +246,19 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     }
 
     MessageType response;
-    memcpy(&response, recvBuf, size[0]);
-    delete []recvBuf;
+    memcpy(&response, recvBuf, sizeof(MessageType));
     if (response == REGISTER_SUCCESS) {
         struct ProcedureSignature function = {name, argTypes};
         skeletonMap[function] = f;
-        return 0;
+    } else if (response == REGISTER_FAILURE) {
+        int reasonCode;
+        memcpy(&reasonCode, recvBuf + sizeof(MessageType), sizeof(int));
+        return reasonCode;
     } else {
-        return 1;
+        return UNKNOWN_MSG_TYPE;
     }
-
-    return -1;
+    delete []recvBuf;
+    return 0;
 }
 
 int rpcExecute() {

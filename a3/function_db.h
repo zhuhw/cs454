@@ -10,7 +10,7 @@ class FunctionDB{
       std::map<ProcedureSignature, std::list<ServerInfo>* > function_map;
     public:
       struct ServerInfo locate(struct ProcedureSignature);
-      void register_function(struct ProcedureSignature, struct ServerInfo);
+      int register_function(struct ProcedureSignature, struct ServerInfo);
       void print();
 };
 
