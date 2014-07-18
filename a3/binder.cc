@@ -8,7 +8,6 @@
 #include <vector>
 #include <stdlib.h>
 #include <string.h>
-
 #include <algorithm>
 #include <vector>
 
@@ -26,8 +25,8 @@ void exit_and_close(int code, int sockfd){
     exit(code);
 }
 
+// socket closed, remove it from active_fd_set
 void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
-    cout << "close and clean " << endl;
     close(socket);
     FD_CLR(socket, active_fd_set);
 }
@@ -43,184 +42,138 @@ int processRequests(int socket, fd_set *active_fd_set){
     // waiting for result
     int size[1];
     if (recv(socket, size, sizeof(size), 0) <= 0) {
-        cerr << "receive failed3" << endl;
-        // socket closed, remove it from active_fd_set
         close_and_clean_fd_set(socket, active_fd_set);
-        return 0;
+        return RECV_FAILED;
     }
-    cout << "from socket" << socket << " size:"<< size[0] << endl;
+
     char *recvBuf = new char[size[0]];
     if (recvAll(socket, recvBuf, size) <= 0) {
-        cerr << "receive failed4" << endl;
         close_and_clean_fd_set(socket, active_fd_set);
-        return 0;
+        return RECV_FAILED;
     }
 
-    int msgType;
-    memcpy(&msgType, recvBuf, sizeof(int));
-    cout <<"TYPE:"<< msgType << endl;
+    MessageType msgType;
+    memcpy(&msgType, recvBuf, sizeof(MessageType));
 
     if (msgType == REGISTER) {
-        int hostnameLen = strlen(recvBuf + 4);
-        char *hostname = new char[hostnameLen];
-        memcpy(hostname, recvBuf + 4, hostnameLen);
-        hostname[hostnameLen] = '\0';
-        cout <<"HOSTNAME:"<<hostname<<endl;
+        int hostnameLen = strlen(recvBuf + sizeof(MessageType));
+        char *hostname = new char[hostnameLen + 1];
+        memcpy(hostname, recvBuf + sizeof(MessageType), hostnameLen + 1);
 
         unsigned short portno;
-        memcpy(&portno, recvBuf + 4 + hostnameLen + 1, sizeof(short));
-        cout <<"PORT:"<<portno<<endl;
+        memcpy(&portno, recvBuf + sizeof(MessageType)+ hostnameLen + 1, sizeof(unsigned short));
 
-        int nameLen = strlen(recvBuf + 4 + hostnameLen + 1 + sizeof(short));
-        char *name = new char[nameLen];
-        memcpy(name, recvBuf + 4 + hostnameLen + 1 + sizeof(short), nameLen);
-        name[nameLen] = '\0';
-        cout <<"FUNC NAME:"<<name<<endl;
-
+        int nameLen = strlen(recvBuf + sizeof(MessageType) + hostnameLen + 1 + sizeof(unsigned short));
+        char *name = new char[nameLen + 1];
+        memcpy(name, recvBuf + sizeof(MessageType) + hostnameLen + 1 + sizeof(short), nameLen + 1);
 
         int intPrtLen = ptrSize((int *)(recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1));
         int *intPrt = new int[intPrtLen];
         memcpy(intPrt, recvBuf + 4 + hostnameLen + 1 + sizeof(short) + nameLen + 1, sizeof(int) * intPrtLen);
 
-        cout<<"ARGTYPES:";
-        for (int i = 0;i < intPrtLen;i++) {
-            cout << (unsigned int)intPrt[i] << " ";
-        } cout<<endl;
         delete []recvBuf;
-        // end of parsing---------------------------
 
         struct ProcedureSignature function = {name, intPrt};
         struct ServerInfo serverInfo = {hostname, portno};
 
         function_db.register_function(function, serverInfo);
-        cout << "Server socket: " << socket << endl;
         add_socket(socket);
-
-        cout << "server list: ";
-        for (int i = 0; i < server_sockets.size(); ++i){
-            cout << server_sockets[i] << " ";
-        }
-        cout << endl;
 
         msgType = REGISTER_SUCCESS;
 
-        size[0] = sizeof(msgType);
+        size[0] = sizeof(MessageType);
         if (send(socket, size, sizeof(MessageType), 0) < 0) {
-            cerr << "write failed1" << endl;
-            exit_and_close(-1, socket);
+            close_and_clean_fd_set(socket, active_fd_set);
+            return SEND_FAILED;
         }
 
         char *sendBuf = new char[size[0]];
-        cout <<"msgType:"<<msgType<<endl;
-        memcpy(sendBuf, &msgType, sizeof(msgType));
+        memcpy(sendBuf, &msgType, sizeof(MessageType));
         if (sendAll(socket, sendBuf, size) < 0) {
-            cerr << "write failed2" << endl;
-            exit_and_close(-1, socket);
+            close_and_clean_fd_set(socket, active_fd_set);
+            return SEND_FAILED;
         }
         delete []sendBuf;
 
     } else if (msgType == LOC_REQUEST) {
-        cout<<"-------------------------------------"<<endl;
-        cout<<"LOC_REQUEST"<<endl;
-        char *cur = recvBuf + sizeof(LOC_REQUEST);
+        char *cur = recvBuf + sizeof(MessageType);
         int nameSize = ptrSize(cur);
 
         char* name = new char[nameSize];
         memcpy(name, cur, nameSize);
-        name[nameSize] = '\0';
-        cout<<"NAME:"<<name<<endl;
 
-        int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
+        int *intCur = (int*)(recvBuf + sizeof(MessageType) + nameSize);
         int argTypesSize = ptrSize(intCur);
         int *argTypes = new int[argTypesSize];
         memcpy(argTypes, intCur, argTypesSize * sizeof(int));
-
-        cout<<"ARGTYPES:";
-        for (int i = 0;i < argTypesSize;i++) {
-            cout << (unsigned int)argTypes[i] << " ";
-        } cout<<endl;
 
         struct ProcedureSignature function = {name, argTypes};
 
         ServerInfo serverInfo = function_db.locate(function);
 
-        int size[1];
         char *sendBuf;
         if (serverInfo.host.length() == 0) {
-            cout << "LOC_FAILURE" <<endl;
             msgType = LOC_FAILURE;
-            size[0] = sizeof(LOC_FAILURE) + sizeof(int);
+            size[0] = sizeof(MessageType) + sizeof(int);
 
-            if (send(socket, size, sizeof(MessageType), 0) < 0) {
-                cerr << "write failed1" << endl;
-                return -1;
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
             }
 
             sendBuf = new char[size[0]];
-            memcpy(sendBuf, &msgType, sizeof(msgType));
+            memcpy(sendBuf, &msgType, sizeof(MessageType));
 
-            int reasonCode = -1;
-            memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
+            int reasonCode = LOC_FAILURE_SERVER_NOT_FOUND;
+            memcpy(sendBuf + sizeof(MessageType), &reasonCode, sizeof(ReasonCode));
         } else {
-            cout << "LOC_SUCCESS" <<endl;
             msgType = LOC_SUCCESS;
+            size[0] = sizeof(MessageType) + serverInfo.host.length() + 1 + sizeof(unsigned short);
 
-            size[0] = sizeof(LOC_SUCCESS) + serverInfo.host.length() + 1 + sizeof(unsigned short);
-
-            if (send(socket, size, sizeof(MessageType), 0) < 0) {
-                cerr << "write failed1" << endl;
-                return -1;
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
             }
 
             sendBuf = new char[size[0]];
-            memcpy(sendBuf, &msgType, sizeof(msgType));
+            memcpy(sendBuf, &msgType, sizeof(MessageType));
 
             char *host = new char[serverInfo.host.length() + 1];
             strcpy(host, serverInfo.host.c_str());
 
-            memcpy(sendBuf + sizeof(msgType),
+            memcpy(sendBuf + sizeof(MessageType),
                 host, serverInfo.host.length() + 1);
             unsigned short port = serverInfo.port;
-            memcpy(sendBuf + sizeof(msgType) + serverInfo.host.length() + 1,
+            memcpy(sendBuf + sizeof(MessageType) + serverInfo.host.length() + 1,
                 &port, sizeof(unsigned short));
         }
 
         if (sendAll(socket, sendBuf, size) < 0) {
-            cerr << "write failed2" << endl;
-            return -1;
+            close_and_clean_fd_set(socket, active_fd_set);
+            return SEND_FAILED;
         }
-
-        cout << "finish sending" <<endl;
 
         delete []sendBuf;
         delete []recvBuf;
     } else if (msgType == TERMINATE) {
-        cout << "TERMINATE" <<endl;
-        int size[1];
-        size[0] = sizeof(TERMINATE);
+        size[0] = sizeof(MessageType);
 
         char *sendBuf = new char[size[0]];
-        memcpy(sendBuf, &msgType, sizeof(msgType));
+        memcpy(sendBuf, &msgType, sizeof(MessageType));
 
         for (int i = 0; i < server_sockets.size(); ++i) {
             int server_socket = server_sockets[i];
-            // int server_socket = connectTo(info);
 
             if (send(server_socket, size, sizeof(MessageType), 0) < 0) {
-                cerr << "write failed1" << endl;
                 continue;
             }
 
             if (sendAll(server_socket, sendBuf, size) < 0) {
-                cerr << "write failed2" << endl;
                 continue;
             }
 
-            cout << "finish terminate" << endl;
-
             char *recvBuf = new char[size[0]];
             if (recvAll(server_socket, recvBuf, size) <= 0) {
-                cerr << "recv failed1" <<endl;
                 continue;
             }
 
@@ -231,7 +184,8 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         delete [] sendBuf;
     } else {
-        // TODO return wrong message type code
+        close_and_clean_fd_set(socket, active_fd_set);
+        return UNKNOWN_MSG_TYPE;
     }
 
     return 0;
@@ -288,12 +242,9 @@ int main() {
             exit_and_close(-1, sockfd);
         }
 
-        cout << "new round of select: " << endl;
-
         for (int curSocket = 0; curSocket <= fdmax; ++curSocket) {
             if (FD_ISSET(curSocket, &read_fd_set)) {
                 if (curSocket == sockfd) {
-                    cout << "create socket "<< endl;
                     // Create new connection
                     int newsockfd = accept(sockfd, (struct sockaddr*)NULL, NULL);
                     if (newsockfd < 0) {
@@ -306,7 +257,6 @@ int main() {
 
                     FD_SET(newsockfd, &active_fd_set);
                 } else {
-                    cout << "process" << endl;
                     processRequests(curSocket, &active_fd_set);
                 }
             }

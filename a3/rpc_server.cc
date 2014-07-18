@@ -21,7 +21,6 @@ static map<struct ProcedureSignature, skeleton> skeletonMap;
 static bool terminate_flag = false;
 
 void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
-    cout << "close and clean " << endl;
     close(socket);
     FD_CLR(socket, active_fd_set);
 }
@@ -30,22 +29,18 @@ int processRequests(int socket, fd_set *active_fd_set){
     // waiting for result
     int size[1];
     if (recv(socket, size, sizeof(size), 0) <= 0) {
-        cerr << "receive failed3" << endl;
         // socket closed, remove it from active_fd_set
         close_and_clean_fd_set(socket, active_fd_set);
         return 0;
     }
-    cout << "from socket" << socket << " size:"<< size[0] << endl;
     char *recvBuf = new char[size[0]];
     if (recvAll(socket, recvBuf, size) <= 0) {
-        cerr << "receive failed4" << endl;
         close_and_clean_fd_set(socket, active_fd_set);
         return 0;
     }
 
     int msgType;
     memcpy(&msgType, recvBuf, sizeof(int));
-    cout <<"TYPE:"<< msgType << endl;
 
     if (msgType == EXECUTE) {
         char *cur = recvBuf + sizeof(msgType);
@@ -53,17 +48,11 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         char* name = new char[nameSize];
         memcpy(name, cur, nameSize);
-        // cout<<"NAME:"<<name<<endl;
 
         int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
         int argTypesSize = ptrSize(intCur);
         int *argTypes = new int[argTypesSize];
         memcpy(argTypes, intCur, argTypesSize * sizeof(int));
-
-        cout<<"ARGTYPES:";
-        for (int i = 0;i < argTypesSize;i++) {
-            cout << (unsigned int)argTypes[i] << " ";
-        } cout<<endl;
 
         void **args = new void*[argTypesSize - 1]; //exclude trailing zero
         for (int i = 0; i < argTypesSize - 1; i++) { // for each arg
@@ -77,7 +66,6 @@ int processRequests(int socket, fd_set *active_fd_set){
                 args[i] = new char[type_size];
 
                 if (recvAll(socket, (char *)args[i], size) <= 0) {
-                    cerr << "receive failed4" << endl;
                     close_and_clean_fd_set(socket, active_fd_set);
                     return 0;
                 }
@@ -86,7 +74,6 @@ int processRequests(int socket, fd_set *active_fd_set){
                 args[i] = new char[size[0]];
 
                 if (recvAll(socket, (char *)args[i], size) <= 0) {
-                    cerr << "receive failed4" << endl;
                     close_and_clean_fd_set(socket, active_fd_set);
                     return 0;
                 }
@@ -98,12 +85,10 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         int returnVal = func(argTypes, args);
 
-        cout <<"returnVal"<<returnVal<<endl;
         if (returnVal == 0) {
             size[0] = sizeof(EXECUTE_SUCCESS) + strlen(name) + 1 + sizeof(int) * argTypesSize; //all
 
             if (send(socket, size, sizeof(size), 0) < 0) {
-                cerr << "write failed1" << endl;
                 return -1;
             }
 
@@ -117,7 +102,6 @@ int processRequests(int socket, fd_set *active_fd_set){
             memcpy(sendBuf + sizeof(msgType) + strlen(name) + 1,
                 argTypes, sizeof(int) * argTypesSize);
             if (sendAll(socket, sendBuf, size) < 0) {
-                cerr << "write failed2" << endl;
                 return -1;
             }
             delete []sendBuf;
@@ -132,7 +116,6 @@ int processRequests(int socket, fd_set *active_fd_set){
                     size[0] = typeToSize(argType) * argSize;
                 }
                 if (sendAll(socket, (char *)args[i], size) < 0) {
-                    cerr << "write failed2" << endl;
                     return -1;
                 }
             }
@@ -141,7 +124,6 @@ int processRequests(int socket, fd_set *active_fd_set){
             size[0] = sizeof(msgType) + sizeof(int);
 
             if (send(socket, size, sizeof(size), 0) < 0) {
-                cerr << "write failed1" << endl;
                 return -1;
             }
 
@@ -152,19 +134,12 @@ int processRequests(int socket, fd_set *active_fd_set){
             memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
 
             if (sendAll(socket, sendBuf, size) < 0) {
-                cerr << "write failed2" << endl;
                 return -1;
             }
 
             delete []sendBuf;
         }
-
-
-
-
-        // cout <<"returnVal"<<returnVal << endl;
     } else if (msgType == TERMINATE) {
-        cout << "Server TERMINATE" << endl;
         int size[1];
         size[0] = sizeof(TERMINATE);
 
@@ -180,7 +155,6 @@ int processRequests(int socket, fd_set *active_fd_set){
 
 
         if (sendAll(socket, sendBuf, size) < 0) {
-            cerr << "write failed2" << endl;
             return -1;
         }
 
@@ -203,11 +177,8 @@ int rpcInit() {
         return -1;
     }
 
-    //-----------------------------------------
-
     serverSocket = connectTo(binder_address, atoi(binder_port));
 
-    //-----------------------------------------
     struct sockaddr_in siListen;
 
     // create client socket
@@ -233,12 +204,10 @@ int rpcInit() {
         return -1;
     }
 
-    // cout << "rpcInit done" << endl;
     return 0;
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
-    // cout << "rpcRegister start" << endl;
     // prepare message content to be sent
     char hostname[128];
     gethostname(hostname, 128);
@@ -254,7 +223,6 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     int size[1];
     size[0] = sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1 + sizeof(int) * argTypesSize;
     if (send(serverSocket, size, sizeof(MessageType), 0) < 0) {
-        cerr << "write failed1" << endl;
         return -1;
     }
 
@@ -271,33 +239,27 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1,
         argTypes, sizeof(int) * argTypesSize);
     if (sendAll(serverSocket, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
         return -1;
     }
     delete []sendBuf;
 
     // waiting for result
     if (recv(serverSocket, size, sizeof(size), 0) <= 0) {
-        cerr << "receive failed3" << endl;
         return -1;
     }
     char *recvBuf = new char[size[0]];
     if (recvAll(serverSocket, recvBuf, size) <= 0) {
-        cerr << "receive failed4" << endl;
         return -1;
     }
 
     MessageType response;
     memcpy(&response, recvBuf, size[0]);
     delete []recvBuf;
-    cout <<"RESPONSE:"<<(int)response<<endl;
     if (response == REGISTER_SUCCESS) {
         struct ProcedureSignature function = {name, argTypes};
         skeletonMap[function] = f;
-        cout<<"success"<<endl;
         return 0;
     } else {
-        cout<<"fail"<<endl;
         return 1;
     }
 
@@ -318,12 +280,9 @@ int rpcExecute() {
             return -1;
         }
 
-        cout << "new round of select: " << endl;
-
         for (int curSocket = 0; curSocket <= fdmax; ++curSocket) {
             if (FD_ISSET(curSocket, &read_fd_set)) {
                 if (curSocket == listenSocket) {
-                    cout << "create socket "<< endl;
                     // Create new connection
                     int newsockfd = accept(listenSocket, (struct sockaddr*)NULL, NULL);
                     if (newsockfd < 0) {
@@ -336,7 +295,6 @@ int rpcExecute() {
 
                     FD_SET(newsockfd, &active_fd_set);
                 } else {
-                    cout << "process" << endl;
                     processRequests(curSocket, &active_fd_set);
                 }
             }

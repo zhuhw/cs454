@@ -15,107 +15,89 @@
 using namespace std;
 
 int rpcCall(char* name, int* argTypes, void** args) {
-    int clientSocket;
-
+    // get binder information
     char *binder_address = getenv("BINDER_ADDRESS");
     char *binder_port = getenv("BINDER_PORT");
 
     if (binder_address == 0 || binder_port == 0) {
         cerr << "Error: BINDER_ADDRESS or BINDER_PORT is empty." << endl;
-        return -1;
+        return ENV_NOT_SET;
     }
 
-    //-----------------------------------------
-    // request server loc
-    clientSocket = connectTo(binder_address, binder_port);
+    // request server location
+    int clientSocket = connectTo(binder_address, binder_port);
 
     int argTypesSize = ptrSize(argTypes);
 
     int size[1];
-    size[0] = sizeof(LOC_REQUEST) + strlen(name) + 1 + sizeof(int) * argTypesSize;
-    if (send(clientSocket, size, sizeof(MessageType), 0) < 0) {
-        cerr << "write failed1" << endl;
-        return -1;
+    size[0] = sizeof(MessageType) + strlen(name) + 1 + sizeof(int) * argTypesSize;
+    if (send(clientSocket, size, sizeof(size), 0) < 0) {
+        return SEND_FAILED;
     }
 
-    cout << "send 1:" << size[0] <<endl;
-
     char *sendBuf = new char[size[0]];
-    int msgType = LOC_REQUEST;
+    MessageType msgType = LOC_REQUEST;
     memcpy(sendBuf,
-        &msgType, sizeof(msgType));
-    memcpy(sendBuf + sizeof(LOC_REQUEST),
+        &msgType, sizeof(MessageType));
+    memcpy(sendBuf + sizeof(MessageType),
         name, strlen(name) + 1);
-    memcpy(sendBuf + sizeof(LOC_REQUEST) + strlen(name) + 1,
+    memcpy(sendBuf + sizeof(MessageType) + strlen(name) + 1,
         argTypes, sizeof(int) * argTypesSize);
     if (sendAll(clientSocket, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
-        return -1;
+        return SEND_FAILED;
     }
     delete []sendBuf;
 
-    cout<<"finish sending"<<endl;
-    // waiting for result
+    // receive server location
     if (recv(clientSocket, size, sizeof(size), 0) <= 0) {
-        cerr << "receive failed3" << endl;
-        return -1;
+        return RECV_FAILED;
     }
     char *recvBuf = new char[size[0]];
     if (recvAll(clientSocket, recvBuf, size) <= 0) {
-        cerr << "receive failed4" << endl;
-        return -1;
+        return RECV_FAILED;
     }
 
     MessageType response;
-    memcpy(&response, recvBuf, sizeof(response));
-    cout <<"RESPONSE:"<<(int)response<<endl;
-    char *hostname;
-    unsigned short portno;
+    memcpy(&response, recvBuf, sizeof(MessageType));
     if (response == LOC_FAILURE) {
         int reason;
-        memcpy(&reason, recvBuf + sizeof(LOC_FAILURE), sizeof(int));
-        cout<<"LOC_FAILURE reason code: "<<reason<<endl;
+        memcpy(&reason, recvBuf + sizeof(MessageType), sizeof(int));
         return reason;
     }
 
-    cout<<"success"<<endl;
-    int hostnameSize = ptrSize(recvBuf + sizeof(LOC_SUCCESS));
-    cout << "hostnameSize:" <<hostnameSize<<endl;
-    hostname = new char[hostnameSize];
-
-    memcpy(hostname, recvBuf + sizeof(LOC_SUCCESS), hostnameSize);
-    memcpy(&portno, recvBuf + sizeof(LOC_SUCCESS) + hostnameSize, sizeof(unsigned short));
+    int hostnameSize = ptrSize(recvBuf + sizeof(MessageType));
+    char *hostname = new char[hostnameSize];
+    memcpy(hostname, recvBuf + sizeof(MessageType), hostnameSize);
+    unsigned short portno;
+    memcpy(&portno, recvBuf + sizeof(MessageType) + hostnameSize, sizeof(unsigned short));
 
     delete []recvBuf;
     close(clientSocket);
 
-    // send real request
-    cout <<"HOST:PORT: "<<hostname<<":"<<portno<<endl;
-
+    // sending execute request
     int sockfd = connectTo(hostname, portno);
 
-    size[0] = sizeof(EXECUTE) + strlen(name) + 1 + sizeof(int) * argTypesSize; //all
+    size[0] = sizeof(MessageType) + strlen(name) + 1 + sizeof(int) * argTypesSize; //all
 
     if (send(sockfd, size, sizeof(size), 0) < 0) {
-        cerr << "write failed1" << endl;
-        return -1;
+        return SEND_FAILED;
     }
 
-    //sending msg except for args
+    // sending msg except for args
     sendBuf = new char[size[0]];
     msgType = EXECUTE;
     memcpy(sendBuf,
-        &msgType, sizeof(msgType));
-    memcpy(sendBuf + sizeof(msgType),
+        &msgType, sizeof(MessageType));
+    memcpy(sendBuf + sizeof(MessageType),
         name, strlen(name) + 1);
-    memcpy(sendBuf + sizeof(msgType) + strlen(name) + 1,
+    memcpy(sendBuf + sizeof(MessageType) + strlen(name) + 1,
         argTypes, sizeof(int) * argTypesSize);
     if (sendAll(sockfd, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
-        return -1;
+        return SEND_FAILED;
     }
     delete []sendBuf;
 
+    // sending args now
     for (int i = 0; i < argTypesSize - 1; i++) { // for each arg
         int argType = (argTypes[i] >> 16) & 0xFF;
         unsigned int argSize = argTypes[i] & 0xFFFF;
@@ -126,43 +108,37 @@ int rpcCall(char* name, int* argTypes, void** args) {
             size[0] = typeToSize(argType) * argSize;
         }
         if (sendAll(sockfd, (char *)args[i], size) < 0) {
-            cerr << "write failed2" << endl;
-            return -1;
+            return SEND_FAILED;
         }
     }
 
     // receive and write to buffer
     if (recv(clientSocket, size, sizeof(size), 0) <= 0) {
-        cerr << "receive failed3" << endl;
-        return 0;
+        return RECV_FAILED;
     }
-    cout << "from socket" << clientSocket << " size:"<< size[0] << endl;
     recvBuf = new char[size[0]];
     if (recvAll(clientSocket, recvBuf, size) <= 0) {
-        cerr << "receive failed4" << endl;
-        return 0;
+        return RECV_FAILED;
     }
 
-    memcpy(&msgType, recvBuf, sizeof(int));
-    cout <<"TYPE:"<< msgType << endl;
-
+    memcpy(&msgType, recvBuf, sizeof(MessageType));
+    // if execute failed, return reason code
     if (msgType == EXECUTE_FAILURE) {
         int reason;
-        memcpy(&reason, recvBuf + sizeof(EXECUTE_FAILURE), sizeof(int));
-        cout<<"EXECUTE_FAILURE reason code: "<<reason<<endl;
+        memcpy(&reason, recvBuf + sizeof(MessageType), sizeof(int));
         delete []recvBuf;
         return reason;
     }
 
+    // receive result
     if (msgType == EXECUTE_SUCCESS) {
-        char *cur = recvBuf + sizeof(msgType);
+        char *cur = recvBuf + sizeof(MessageType);
         int nameSize = ptrSize(cur);
 
         char* name = new char[nameSize];
         memcpy(name, cur, nameSize);
-        // cout<<"NAME:"<<name<<endl;
 
-        int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
+        int *intCur = (int*)(recvBuf + sizeof(MessageType) + nameSize);
         int argTypesSize = ptrSize(intCur);
         memcpy(argTypes, intCur, argTypesSize * sizeof(int));
 
@@ -173,58 +149,50 @@ int rpcCall(char* name, int* argTypes, void** args) {
             int type_size = typeToSize(argType);
             if (argSize == 0){
                 size[0] = type_size;
-                args[i] = new char[type_size];
-
-                if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                    cerr << "receive failed4" << endl;
-                    return 0;
-                }
             } else {
-                size[0] = type_size*argSize;
-                args[i] = new char[size[0]];
+                size[0] = type_size * argSize;
+            }
+            args[i] = new char[size[0]];
 
-                if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                    cerr << "receive failed4" << endl;
-                    return 0;
-                }
+            if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
+                return RECV_FAILED;
             }
         }
     } else {
-        //TODO handle this
+        // unknown message type
+        return UNKNOWN_MSG_TYPE;
     }
 
-    close(clientSocket);
+    close(sockfd);
 
     return 0;
 }
 
 int rpcTerminate() {
-    int binderSocket;
-
+    // get binder information
     char *binder_address = getenv("BINDER_ADDRESS");
     char *binder_port = getenv("BINDER_PORT");
 
     if (binder_address == 0 || binder_port == 0) {
         cerr << "Error: BINDER_ADDRESS or BINDER_PORT is empty." << endl;
-        return -1;
+        return ENV_NOT_SET;
     }
 
-    binderSocket = connectTo(binder_address, binder_port);
+    // send terminate message
+    int binderSocket = connectTo(binder_address, binder_port);
 
     int size[1];
-    size[0] = sizeof(TERMINATE);
+    size[0] = sizeof(MessageType);
 
     if (send(binderSocket, size, sizeof(MessageType), 0) < 0) {
-        cerr << "write failed1" << endl;
-        return -1;
+        return SEND_FAILED;
     }
 
     char *sendBuf = new char[size[0]];
-    int msgType = TERMINATE;
+    MessageType msgType = TERMINATE;
     memcpy(sendBuf, &msgType, sizeof(msgType));
     if (sendAll(binderSocket, sendBuf, size) < 0) {
-        cerr << "write failed2" << endl;
-        return -1;
+        return SEND_FAILED;
     }
 
     return 0;

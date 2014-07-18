@@ -41,7 +41,6 @@ int recvAll(int s, char *buf, int *len) {
 
     while(total < *len) {
         n = recv(s, buf+total, bytesleft, 0);
-        // cout << "recvAll:" << total << " " << n << endl;
         if (n <= 0) {
             break;
         }
@@ -98,7 +97,7 @@ int connectTo(const char* address, sockaddr_in siServer) {
     // create client socket
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         cerr << "Cannot create socket" << endl;
-        exit(-1);
+        return -1;
     }
 
     siServer.sin_family = AF_INET;
@@ -106,12 +105,11 @@ int connectTo(const char* address, sockaddr_in siServer) {
     // connect to server
     host = gethostbyname(address);
     if (!host) {
-        cout << "could not resolve hostname!" << endl;
+        cerr << "could not resolve hostname!" << endl;
         return -1;
     }
 
     memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
-    cout << address << " " << siServer.sin_port << endl;
     if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
         cerr << "Connection Failed" << endl;
         return -1;
@@ -129,7 +127,6 @@ int connectTo(char *address, unsigned short port) {
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_port = htons(port);
-    // cout << address << " " << port << endl;
     return connectTo(address, siServer);
 }
 

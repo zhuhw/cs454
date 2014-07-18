@@ -6,14 +6,12 @@ using namespace std;
 void FunctionDB::register_function(struct ProcedureSignature signatrue, struct ServerInfo info){
     if (function_map.count(signatrue) == 0) {
         // key not existed
-        cout << "key not found " << endl;
         list<ServerInfo> *info_list = new list<ServerInfo>();
         info_list->push_back(info);
 
         function_map[signatrue] = info_list;
     } else {
         list<ServerInfo> *info_list = function_map[signatrue];
-        cout << "key found " << endl;
 
         for (std::list<ServerInfo>::iterator it= info_list->begin(); it != info_list->end(); ++it){
             if (it->host == info.host && it->port == info.port){
@@ -24,8 +22,6 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
         info_list->push_back(info);
         cout << info_list->size() << endl;
     }
-
-    print();
 }
 
 struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
@@ -42,8 +38,6 @@ struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
         // round robin, pop the first and push it back to the end of the queue
         info_list->pop_front();
         info_list->push_back(info);
-
-        print();
 
         return info;
     }

@@ -17,8 +17,12 @@ enum MessageType {
 };
 
 enum ReasonCode {
-    TERMINATE_SUCCESS,
-    TERMINATE_CALL_NOT_FROM_BINDER
+    ENV_NOT_SET = -1,
+    SEND_FAILED = -2,
+    RECV_FAILED = -3,
+    UNKNOWN_MSG_TYPE = -4,
+    TERMINATE_CALL_NOT_FROM_BINDER = -5,
+    LOC_FAILURE_SERVER_NOT_FOUND = -6
 };
 
 extern int sendAll(int s, char *buf, int *len);
