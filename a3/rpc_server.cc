@@ -136,7 +136,26 @@ int processRequests(int socket, fd_set *active_fd_set){
                 }
             }
         } else {
-            //TODO handle this(send EXECUTE_FAILURE?)
+            msgType = EXECUTE_FAILURE;
+            size[0] = sizeof(msgType) + sizeof(int);
+
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                cerr << "write failed1" << endl;
+                return -1;
+            }
+
+            char *sendBuf = new char[size[0]];
+            memcpy(sendBuf, &msgType, sizeof(msgType));
+
+            int reasonCode = -1; // TODO change enum (skeleton failure?)
+            memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
+
+            if (sendAll(socket, sendBuf, size) < 0) {
+                cerr << "write failed2" << endl;
+                return -1;
+            }
+
+            delete []sendBuf;
         }
 
 
