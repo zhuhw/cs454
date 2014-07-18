@@ -17,7 +17,7 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
 
         for (std::list<ServerInfo>::iterator it= info_list->begin(); it != info_list->end(); ++it){
             if (it->host == info.host && it->port == info.port){
-                cout << "overload!" <<endl;
+                return ;
             }
         }
 

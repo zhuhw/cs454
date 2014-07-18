@@ -18,7 +18,7 @@
 using namespace std;
 
 FunctionDB function_db;
-vector<struct ServerInfo> server_info_vector;
+vector<int> server_sockets;
 bool terminate_flag = false;
 
 void exit_and_close(int code, int sockfd){
@@ -32,10 +32,10 @@ void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
     FD_CLR(socket, active_fd_set);
 }
 
-void add_server_info(struct ServerInfo info){
-    if (find(server_info_vector.begin(), server_info_vector.end(), info)
-            == server_info_vector.end()) {
-        server_info_vector.push_back(info);
+void add_socket(int socket){
+    if (find(server_sockets.begin(), server_sockets.end(), socket)
+            == server_sockets.end()) {
+        server_sockets.push_back(socket);
     }
 }
 
@@ -93,11 +93,12 @@ int processRequests(int socket, fd_set *active_fd_set){
         struct ServerInfo serverInfo = {hostname, portno};
 
         function_db.register_function(function, serverInfo);
-        add_server_info(serverInfo);
+        cout << "Server socket: " << socket << endl;
+        add_socket(socket);
 
         cout << "server list: ";
-        for (int i = 0; i < server_info_vector.size(); ++i){
-            cout << server_info_vector[i].host << "," << server_info_vector[i].port << " ";
+        for (int i = 0; i < server_sockets.size(); ++i){
+            cout << server_sockets[i] << " ";
         }
         cout << endl;
 
@@ -201,17 +202,18 @@ int processRequests(int socket, fd_set *active_fd_set){
         char *sendBuf = new char[size[0]];
         memcpy(sendBuf, &msgType, sizeof(msgType));
 
-        for (int i = 0; i < server_info_vector.size(); ++i) {
-            struct ServerInfo info = server_info_vector[i];
-            int server_socket = connectTo(info);
+        for (int i = 0; i < server_sockets.size(); ++i) {
+            int server_socket = server_sockets[i];
+            // int server_socket = connectTo(info);
 
             if (send(server_socket, size, sizeof(MessageType), 0) < 0) {
                 cerr << "write failed1" << endl;
+                continue;
             }
 
             if (sendAll(server_socket, sendBuf, size) < 0) {
                 cerr << "write failed2" << endl;
-                return -1;
+                continue;
             }
 
             cout << "finish terminate" << endl;
@@ -219,11 +221,13 @@ int processRequests(int socket, fd_set *active_fd_set){
             char *recvBuf = new char[size[0]];
             if (recvAll(server_socket, recvBuf, size) <= 0) {
                 cerr << "recv failed1" <<endl;
-                return -1;
+                continue;
             }
 
             delete[] recvBuf;
         }
+
+        terminate_flag = true;
 
         delete [] sendBuf;
     } else {

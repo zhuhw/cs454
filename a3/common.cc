@@ -111,8 +111,7 @@ int connectTo(const char* address, sockaddr_in siServer) {
     }
 
     memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
-
-
+    cout << address << " " << siServer.sin_port << endl;
     if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
         cerr << "Connection Failed" << endl;
         return -1;
@@ -138,7 +137,7 @@ int connectTo(struct ServerInfo info) {
     struct sockaddr_in siServer;
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
-    siServer.sin_port = info.port;
+    siServer.sin_port = htons(info.port);
     return connectTo(info.host.c_str(), siServer);
 }
 

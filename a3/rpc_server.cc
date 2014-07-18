@@ -18,6 +18,7 @@ using namespace std;
 static int serverSocket;
 static int listenSocket;
 static map<struct ProcedureSignature, skeleton> skeletonMap;
+static bool terminate_flag = false;
 
 void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
     cout << "close and clean " << endl;
@@ -144,6 +145,25 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         // cout <<"returnVal"<<returnVal << endl;
     } else if (msgType == TERMINATE) {
+        cout << "Server TERMINATE" << endl;
+        int size[1];
+        size[0] = sizeof(TERMINATE);
+
+        char *sendBuf = new char[size[0]];
+
+        if (socket == serverSocket) {
+            terminate_flag = true;
+            memcpy(sendBuf, &msgType, sizeof(msgType));
+        } else {
+            ReasonCode code = TERMINATE_CALL_NOT_FROM_BINDER;
+            memcpy(sendBuf, &code, sizeof(code));
+        }
+
+
+        if (sendAll(socket, sendBuf, size) < 0) {
+            cerr << "write failed2" << endl;
+            return -1;
+        }
 
     } else {
         // TODO return wrong message type code
@@ -269,6 +289,7 @@ int rpcExecute() {
     fd_set active_fd_set, read_fd_set;
     FD_ZERO (&active_fd_set);
     FD_SET (listenSocket, &active_fd_set);
+    FD_SET (serverSocket, &active_fd_set);
     int fdmax = listenSocket;
 
     while(1) {
@@ -301,6 +322,9 @@ int rpcExecute() {
                 }
             }
         }
+
+        if (terminate_flag)
+            break;
     }
 
     close(listenSocket);
