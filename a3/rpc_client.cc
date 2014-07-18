@@ -162,89 +162,22 @@ int rpcCall(char* name, int* argTypes, void** args) {
             int argType = (argTypes[i] >> 16) & 0xFF;
             unsigned int argSize = argTypes[i] & 0xFFFF;
 
-            if (argType == ARG_CHAR) {
-                if (argSize == 0) {
-                    size[0] = sizeof(char);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(char) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
+            int type_size = typeToSize(argType);
+            if (argSize == 0){
+                size[0] = type_size;
+                args[i] = new char[type_size];
+
+                if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
+                    cerr << "receive failed4" << endl;
+                    return 0;
                 }
-            } else if (argType == ARG_SHORT) {
-                if (argSize == 0) {
-                    size[0] = sizeof(short);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(short) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                }
-            } else if (argType == ARG_INT) {
-                if (argSize == 0) {
-                    size[0] = sizeof(int);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(int) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                }
-            } else if (argType == ARG_LONG) {
-                if (argSize == 0) {
-                    size[0] = sizeof(long);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(long) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                }
-            } else if (argType == ARG_DOUBLE) {
-                if (argSize == 0) {
-                    size[0] = sizeof(double);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(double) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                }
-            } else if (argType == ARG_FLOAT) {
-                if (argSize == 0) {
-                    size[0] = sizeof(float);
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
-                } else {
-                    size[0] = sizeof(float) * argSize;
-                    if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
-                        cerr << "receive failed4" << endl;
-                        return 0;
-                    }
+            } else {
+                size[0] = type_size*argSize;
+                args[i] = new char[size[0]];
+
+                if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
+                    cerr << "receive failed4" << endl;
+                    return 0;
                 }
             }
         }
