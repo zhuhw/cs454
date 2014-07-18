@@ -9,12 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+#include <vector>
+
 #include "function_db.h"
 #include "common.h"
 
 using namespace std;
 
 FunctionDB function_db;
+vector<struct ServerInfo> server_info_vector;
+bool terminate_flag = false;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
@@ -25,6 +30,13 @@ void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
     cout << "close and clean " << endl;
     close(socket);
     FD_CLR(socket, active_fd_set);
+}
+
+void add_server_info(struct ServerInfo info){
+    if (find(server_info_vector.begin(), server_info_vector.end(), info)
+            == server_info_vector.end()) {
+        server_info_vector.push_back(info);
+    }
 }
 
 int processRequests(int socket, fd_set *active_fd_set){
@@ -81,11 +93,18 @@ int processRequests(int socket, fd_set *active_fd_set){
         struct ServerInfo serverInfo = {hostname, portno};
 
         function_db.register_function(function, serverInfo);
+        add_server_info(serverInfo);
+
+        cout << "server list: ";
+        for (int i = 0; i < server_info_vector.size(); ++i){
+            cout << server_info_vector[i].host << "," << server_info_vector[i].port << " ";
+        }
+        cout << endl;
 
         msgType = REGISTER_SUCCESS;
 
         size[0] = sizeof(msgType);
-        if (send(socket, size, sizeof(size), 0) < 0) {
+        if (send(socket, size, sizeof(MessageType), 0) < 0) {
             cerr << "write failed1" << endl;
             exit_and_close(-1, socket);
         }
@@ -131,7 +150,7 @@ int processRequests(int socket, fd_set *active_fd_set){
             msgType = LOC_FAILURE;
             size[0] = sizeof(LOC_FAILURE) + sizeof(int);
 
-            if (send(socket, size, sizeof(size), 0) < 0) {
+            if (send(socket, size, sizeof(MessageType), 0) < 0) {
                 cerr << "write failed1" << endl;
                 return -1;
             }
@@ -147,7 +166,7 @@ int processRequests(int socket, fd_set *active_fd_set){
 
             size[0] = sizeof(LOC_SUCCESS) + serverInfo.host.length() + 1 + sizeof(unsigned short);
 
-            if (send(socket, size, sizeof(size), 0) < 0) {
+            if (send(socket, size, sizeof(MessageType), 0) < 0) {
                 cerr << "write failed1" << endl;
                 return -1;
             }
@@ -174,6 +193,39 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         delete sendBuf;
         delete recvBuf;
+    } else if (msgType == TERMINATE) {
+        cout << "TERMINATE" <<endl;
+        int size[1];
+        size[0] = sizeof(TERMINATE);
+
+        char *sendBuf = new char[size[0]];
+        memcpy(sendBuf, &msgType, sizeof(msgType));
+
+        for (int i = 0; i < server_info_vector.size(); ++i) {
+            struct ServerInfo info = server_info_vector[i];
+            int server_socket = connectTo(info);
+
+            if (send(server_socket, size, sizeof(MessageType), 0) < 0) {
+                cerr << "write failed1" << endl;
+            }
+
+            if (sendAll(socket, sendBuf, size) < 0) {
+                cerr << "write failed2" << endl;
+                return -1;
+            }
+
+            cout << "finish terminate" << endl;
+
+            char *recvBuf = new char[size[0]];
+            if (recvAll(server_socket, recvBuf, size) <= 0) {
+                cerr << "recv failed1" <<endl;
+                return -1;
+            }
+
+            delete[] recvBuf;
+        }
+
+        delete [] sendBuf;
     } else {
         // TODO return wrong message type code
     }
@@ -255,6 +307,9 @@ int main() {
                 }
             }
         }
+
+        if (terminate_flag)
+            break;
     }
 
     close(sockfd);

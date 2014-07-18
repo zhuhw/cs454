@@ -16,6 +16,11 @@ enum MessageType {
     TERMINATE
 };
 
+enum ReasonCode {
+    TERMINATE_SUCCESS,
+    TERMINATE_CALL_NOT_FROM_BINDER
+};
+
 extern int sendAll(int s, char *buf, int *len);
 extern int recvAll(int s, char *buf, int *len);
 
@@ -31,7 +36,11 @@ struct ServerInfo {
     unsigned short port;
 };
 
+bool operator == (const ServerInfo& x, const ServerInfo& y);
+
+int connectTo(char *address, char* port);
 int connectTo(char *address, unsigned short port);
+int connectTo(struct ServerInfo info);
 
 int ptrSize(char *ptr);
 int ptrSize(int *ptr);

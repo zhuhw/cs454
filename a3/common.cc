@@ -87,11 +87,13 @@ bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {
     }
 }
 
-int connectTo(char *address, unsigned short port) {
-    cout << "connectTo" << address << ":" << port << endl;
+bool operator ==(const ServerInfo& x, const ServerInfo& y){
+    return ( x.host == y.host ) && (x.port == y.port);
+}
+
+int connectTo(const char* address, sockaddr_in siServer) {
     int clientSocket;
     struct hostent *host;
-    struct sockaddr_in siServer;
 
     // create client socket
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
@@ -99,26 +101,45 @@ int connectTo(char *address, unsigned short port) {
         exit(-1);
     }
 
-    // set client info, port is implicitly set to 0 by memset
-    memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
-    siServer.sin_port = htons(port);
 
     // connect to server
     host = gethostbyname(address);
     if (!host) {
         cout << "could not resolve hostname!" << endl;
-        exit(-1);
+        return -1;
     }
 
     memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
 
+
     if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
         cerr << "Connection Failed" << endl;
-        exit(-1);
+        return -1;
     }
 
     return clientSocket;
+}
+
+int connectTo(char *address, char* port) {
+    return connectTo(address, atoi(port));
+}
+
+int connectTo(char *address, unsigned short port) {
+    struct sockaddr_in siServer;
+    // set client info, port is implicitly set to 0 by memset
+    memset((char *)&siServer, 0, sizeof(siServer));
+    siServer.sin_port = htons(port);
+    cout << address << " " << port << endl;
+    return connectTo(address, siServer);
+}
+
+int connectTo(struct ServerInfo info) {
+    struct sockaddr_in siServer;
+    // set client info, port is implicitly set to 0 by memset
+    memset((char *)&siServer, 0, sizeof(siServer));
+    siServer.sin_port = info.port;
+    return connectTo(info.host.c_str(), siServer);
 }
 
 int ptrSize(char *ptr) {
