@@ -9,12 +9,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+#include <vector>
+
 #include "function_db.h"
 #include "common.h"
 
 using namespace std;
 
 FunctionDB function_db;
+vector<struct ServerInfo> server_info_vector;
 
 void exit_and_close(int code, int sockfd){
     close(sockfd);
@@ -25,6 +29,13 @@ void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
     cout << "close and clean " << endl;
     close(socket);
     FD_CLR(socket, active_fd_set);
+}
+
+void add_server_info(struct ServerInfo info){
+    if (find(server_info_vector.begin(), server_info_vector.end(), info)
+            == server_info_vector.end()) {
+        server_info_vector.push_back(info);
+    }
 }
 
 int processRequests(int socket, fd_set *active_fd_set){
@@ -81,6 +92,13 @@ int processRequests(int socket, fd_set *active_fd_set){
         struct ServerInfo serverInfo = {hostname, portno};
 
         function_db.register_function(function, serverInfo);
+        add_server_info(serverInfo);
+
+        cout << "server list: ";
+        for (int i = 0; i < server_info_vector.size(); ++i){
+            cout << server_info_vector[i].host << "," << server_info_vector[i].port << " ";
+        }
+        cout << endl;
 
         msgType = REGISTER_SUCCESS;
 
@@ -174,6 +192,13 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         delete sendBuf;
         delete recvBuf;
+    } else if (msgType == TERMINATE) {
+        for (int i = 0; i < server_info_vector.size(); ++i) {
+            struct ServerInfo info = server_info_vector[i];
+            int server_socket = connectTo(info);
+
+
+        }
     }
 
     return 0;

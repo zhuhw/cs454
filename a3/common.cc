@@ -85,10 +85,13 @@ bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {
     }
 }
 
-int connectTo(char *address, char* port) {
+bool operator ==(const ServerInfo& x, const ServerInfo& y){
+    return ( x.host == y.host ) && (x.port == y.port);
+}
+
+int connectTo(const char* address, sockaddr_in siServer) {
     int clientSocket;
     struct hostent *host;
-    struct sockaddr_in siServer;
 
     // create client socket
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
@@ -99,7 +102,6 @@ int connectTo(char *address, char* port) {
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
-    siServer.sin_port = htons(atoi(port));
 
     // connect to server
     host = gethostbyname(address);
@@ -116,6 +118,18 @@ int connectTo(char *address, char* port) {
     }
 
     return clientSocket;
+}
+
+int connectTo(char *address, char* port) {
+    struct sockaddr_in siServer;
+    siServer.sin_port = htons(atoi(port));
+    return connectTo(address, siServer);
+}
+
+int connectTo(struct ServerInfo info) {
+    struct sockaddr_in siServer;
+    siServer.sin_port = info.port;
+    return connectTo(info.host.c_str(), siServer);
 }
 
 int ptrSize(char *ptr) {
