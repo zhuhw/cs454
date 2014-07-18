@@ -19,6 +19,60 @@ static int serverSocket;
 static int listenSocket;
 static map<struct ProcedureSignature, skeleton> skeletonMap;
 
+void close_and_clean_fd_set(int socket, fd_set *active_fd_set){
+    cout << "close and clean " << endl;
+    close(socket);
+    FD_CLR(socket, active_fd_set);
+}
+
+int processRequests(int socket, fd_set *active_fd_set){
+    cout <<"processRequests"<<endl;
+    // waiting for result
+    int size[1];
+    if (recv(socket, size, sizeof(size), 0) <= 0) {
+        cerr << "receive failed3" << endl;
+        // socket closed, remove it from active_fd_set
+        close_and_clean_fd_set(socket, active_fd_set);
+        return 0;
+    }
+    cout << "from socket" << socket << " size:"<< size[0] << endl;
+    char *recvBuf = new char[size[0]];
+    if (recvAll(socket, recvBuf, size) <= 0) {
+        cerr << "receive failed4" << endl;
+        close_and_clean_fd_set(socket, active_fd_set);
+        return 0;
+    }
+
+    int msgType;
+    memcpy(&msgType, recvBuf, sizeof(int));
+
+    char *cur = recvBuf + sizeof(msgType);
+    int nameSize = ptrSize(cur);
+
+    char* name = new char[nameSize];
+    memcpy(name, cur, nameSize);
+    cout<<"NAME:"<<name<<endl;
+
+    int *intCur = (int*)(recvBuf + sizeof(LOC_REQUEST) + nameSize);
+    int argTypesSize = ptrSize(intCur);
+    int *argTypes = new int[argTypesSize];
+    memcpy(argTypes, intCur, argTypesSize * sizeof(int));
+
+    cout<<"ARGTYPES:";
+    for (int i = 0;i < argTypesSize;i++) {
+        cout << (unsigned int)argTypes[i] << " ";
+    } cout<<endl;
+
+    if (msgType != EXECUTE) {
+        // TODO return wrong message type code
+    }
+
+
+    delete recvBuf;
+
+    return 0;
+}
+
 int rpcInit() {
     char *binder_address = getenv("BINDER_ADDRESS");
     char *binder_port = getenv("BINDER_PORT");
@@ -30,7 +84,7 @@ int rpcInit() {
 
     //-----------------------------------------
 
-    serverSocket = connectTo(binder_address, binder_port);
+    serverSocket = connectTo(binder_address, atoi(binder_port));
 
     //-----------------------------------------
     struct sockaddr_in siListen;
@@ -130,14 +184,45 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
-    for (map<struct ProcedureSignature, skeleton>::iterator it=skeletonMap.begin(); it!=skeletonMap.end(); ++it) {
-        cout << it->first.name << ", ";
-        for (int *i = it->first.argTypes; *i != 0; i++) {
-            cout << (unsigned int)*i << " ";
-        } cout << '\n';
+    fd_set active_fd_set, read_fd_set;
+    FD_ZERO (&active_fd_set);
+    FD_SET (listenSocket, &active_fd_set);
+    int fdmax = listenSocket;
+
+    while(1) {
+        cout<<"while"<<endl;
+        read_fd_set = active_fd_set;
+        if (select (fdmax+1, &read_fd_set, NULL, NULL, NULL) < 0) {
+            cerr << "Error: select." << endl;
+            return -1;
+        }
+
+        cout << "new round of select: " << endl;
+
+        for (int curSocket = 0; curSocket <= fdmax; ++curSocket) {
+            if (FD_ISSET(curSocket, &read_fd_set)) {
+                if (curSocket == listenSocket) {
+                    cout << "create socket "<< endl;
+                    // Create new connection
+                    int newsockfd = accept(listenSocket, (struct sockaddr*)NULL, NULL);
+                    if (newsockfd < 0) {
+                        cerr << "Accept error" << endl;
+                        return 0;
+                    }
+                    if (newsockfd > fdmax) {
+                        fdmax = newsockfd;
+                    }
+
+                    FD_SET(newsockfd, &active_fd_set);
+                } else {
+                    cout << "process" << endl;
+                    processRequests(curSocket, &active_fd_set);
+                }
+            }
+        }
     }
 
-    // for (;;) {}
+    close(listenSocket);
 
     return 0;
 }

@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "rpc.h"
+
 using namespace std;
 
 int sendAll(int s, char *buf, int *len) {
@@ -85,7 +87,8 @@ bool operator <(const ProcedureSignature& x, const ProcedureSignature& y) {
     }
 }
 
-int connectTo(char *address, char* port) {
+int connectTo(char *address, unsigned short port) {
+    cout << "connectTo" << address << ":" << port << endl;
     int clientSocket;
     struct hostent *host;
     struct sockaddr_in siServer;
@@ -99,7 +102,7 @@ int connectTo(char *address, char* port) {
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));
     siServer.sin_family = AF_INET;
-    siServer.sin_port = htons(atoi(port));
+    siServer.sin_port = htons(port);
 
     // connect to server
     host = gethostbyname(address);
@@ -132,4 +135,21 @@ int ptrSize(int *ptr) {
         ++size;
     }
     return size + 1;
+}
+
+int typeToSize(int type) {
+    if (type == ARG_CHAR) {
+        return sizeof(char);
+    } else if (type == ARG_SHORT) {
+        return sizeof(short);
+    } else if (type == ARG_INT) {
+        return sizeof(int);
+    } else if (type == ARG_LONG) {
+        return sizeof(long);
+    } else if (type == ARG_DOUBLE) {
+        return sizeof(double);
+    } else if (type == ARG_FLOAT) {
+        return sizeof(float);
+    }
+    return -1;
 }

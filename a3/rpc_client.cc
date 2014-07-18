@@ -27,7 +27,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
     //-----------------------------------------
     // request server loc
-    clientSocket = connectTo(binder_address, binder_port);
+    clientSocket = connectTo(binder_address, atoi(binder_port));
 
     int argTypesSize = ptrSize(argTypes);
 
@@ -92,27 +92,62 @@ int rpcCall(char* name, int* argTypes, void** args) {
     // send real request
     cout <<"HOST:PORT: "<<hostname<<":"<<portno<<endl;
 
-    // char portnoStr[6];
-    // strcpy(portnoStr, to_string(portno).c_str());
+    int sockfd = connectTo(hostname, portno);
 
-    // int sockfd = connectTo(hostname, portnoStr);
+    // int ppSize = 0;
+    // for (int i = 0; i < argTypesSize; i++) { // for each arg
+    //     int argType = (argTypes[i] >> 16) & 0xFF;
+    //     unsigned int argSize = argTypes[i] & 0xFFFF;
+    //     cout << "t:"<<argType << " s:"<<argSize << endl;
+    //
+    //     if (argSize == 0) { //scalar
+    //         ppSize += typeToSize(argType);
+    //     } else { //vector
+    //         ppSize += typeToSize(argType) * argSize;
+    //     }
+    // }
+    size[0] = sizeof(EXECUTE) + strlen(name) + 1 + sizeof(int) * argTypesSize/* + ppSize*/; //all
 
-    cout << "-----"<<endl;
-    int ppSize = 0;
-    for (int i = 0; i < ptrSize(argTypes); i++) { // for each arg
+    if (send(sockfd, size, sizeof(size), 0) < 0) {
+        cerr << "write failed1" << endl;
+        return -1;
+    }
+
+    //sending msg except for args
+    // size[0] -= ppSize;
+    sendBuf = new char[size[0]];
+    msgType = EXECUTE;
+    memcpy(sendBuf,
+        &msgType, sizeof(msgType));
+    memcpy(sendBuf + sizeof(msgType),
+        name, strlen(name) + 1);
+    memcpy(sendBuf + sizeof(msgType) + strlen(name) + 1,
+        argTypes, sizeof(int) * argTypesSize);
+    if (sendAll(sockfd, sendBuf, size) < 0) {
+        cerr << "write failed2" << endl;
+        return -1;
+    }
+    delete sendBuf;
+
+    for (int i = 0; i < argTypesSize; i++) { // for each arg
         int argType = (argTypes[i] >> 16) & 0xFF;
         unsigned int argSize = argTypes[i] & 0xFFFF;
-        cout << "t:"<<argType << " s:"<<argSize << endl;
+
 
         if (argSize == 0) {
-
+            size[0] = typeToSize(argType);
         } else {
-
+            size[0] = typeToSize(argType) * argSize;
+        }
+        if (sendAll(sockfd, (char *)args[i], size) < 0) {
+            cerr << "write failed2" << endl;
+            return -1;
         }
     }
-    cout << "-----"<<endl;
 
-    size[0] = sizeof(EXECUTE) + ptrSize(argTypes);
+    // TODO receive
+
+    close(sockfd);
 
     return 0;
 }

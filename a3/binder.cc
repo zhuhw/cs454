@@ -174,6 +174,8 @@ int processRequests(int socket, fd_set *active_fd_set){
 
         delete sendBuf;
         delete recvBuf;
+    } else {
+        // TODO return wrong message type code
     }
 
     return 0;
