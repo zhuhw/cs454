@@ -18,12 +18,14 @@ enum MessageType {
 };
 
 enum ReasonCode {
-    ENV_NOT_SET = -1,
-    SEND_FAILED = -2,
-    RECV_FAILED = -3,
-    UNKNOWN_MSG_TYPE = -4,
-    TERMINATE_CALL_NOT_FROM_BINDER = -5,
-    LOC_FAILURE_SERVER_NOT_FOUND = -6
+    ENV_NOT_SET = -1,                        // environment variables are not set
+    SEND_FAILED = -2,                        // socket cannot send successfully
+    RECV_FAILED = -3,                        // socket cannot receive successfully
+    UNKNOWN_MSG_TYPE = -4,                   // received message but type unexpected
+    TERMINATE_CALL_NOT_FROM_BINDER = -5,     // terminate call is not sent from binder
+    LOC_FAILURE_SERVER_NOT_FOUND = -6,       // cannot locate server
+    SKELETON_FAILURE = -7,                   // skeleton failed to execute properly
+    REGISTER_DUPLICATE = -8                  // another function of the same server exists
 };
 
 extern int sendAll(int s, char *buf, int *len);

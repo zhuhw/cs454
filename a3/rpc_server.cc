@@ -31,15 +31,15 @@ int processRequests(int socket, fd_set *active_fd_set){
     if (recv(socket, size, sizeof(size), 0) <= 0) {
         // socket closed, remove it from active_fd_set
         close_and_clean_fd_set(socket, active_fd_set);
-        return 0;
+        return RECV_FAILED;
     }
     char *recvBuf = new char[size[0]];
     if (recvAll(socket, recvBuf, size) <= 0) {
         close_and_clean_fd_set(socket, active_fd_set);
-        return 0;
+        return RECV_FAILED;
     }
 
-    int msgType;
+    MessageType msgType;
     memcpy(&msgType, recvBuf, sizeof(int));
 
     if (msgType == EXECUTE) {
@@ -63,20 +63,14 @@ int processRequests(int socket, fd_set *active_fd_set){
 
             if (argSize == 0){
                 size[0] = type_size;
-                args[i] = new char[type_size];
-
-                if (recvAll(socket, (char *)args[i], size) <= 0) {
-                    close_and_clean_fd_set(socket, active_fd_set);
-                    return 0;
-                }
             } else {
-                size[0] = type_size*argSize;
-                args[i] = new char[size[0]];
+                size[0] = type_size * argSize;
+            }
+            args[i] = new char[size[0]];
 
-                if (recvAll(socket, (char *)args[i], size) <= 0) {
-                    close_and_clean_fd_set(socket, active_fd_set);
-                    return 0;
-                }
+            if (recvAll(socket, (char *)args[i], size) <= 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return RECV_FAILED;
             }
         }
 
@@ -89,7 +83,7 @@ int processRequests(int socket, fd_set *active_fd_set){
             size[0] = sizeof(EXECUTE_SUCCESS) + strlen(name) + 1 + sizeof(int) * argTypesSize; //all
 
             if (send(socket, size, sizeof(size), 0) < 0) {
-                return -1;
+                return SEND_FAILED;
             }
 
             //sending msg except for args
@@ -102,7 +96,7 @@ int processRequests(int socket, fd_set *active_fd_set){
             memcpy(sendBuf + sizeof(msgType) + strlen(name) + 1,
                 argTypes, sizeof(int) * argTypesSize);
             if (sendAll(socket, sendBuf, size) < 0) {
-                return -1;
+                return SEND_FAILED;
             }
             delete []sendBuf;
 
@@ -116,7 +110,7 @@ int processRequests(int socket, fd_set *active_fd_set){
                     size[0] = typeToSize(argType) * argSize;
                 }
                 if (sendAll(socket, (char *)args[i], size) < 0) {
-                    return -1;
+                    return SEND_FAILED;
                 }
             }
         } else {
@@ -124,17 +118,17 @@ int processRequests(int socket, fd_set *active_fd_set){
             size[0] = sizeof(msgType) + sizeof(int);
 
             if (send(socket, size, sizeof(size), 0) < 0) {
-                return -1;
+                return SEND_FAILED;
             }
 
             char *sendBuf = new char[size[0]];
             memcpy(sendBuf, &msgType, sizeof(msgType));
 
-            int reasonCode = -1; // TODO change enum (skeleton failure?)
+            int reasonCode = SKELETON_FAILURE; // TODO change enum (skeleton failure?)
             memcpy(sendBuf + sizeof(msgType), &reasonCode, sizeof(int));
 
             if (sendAll(socket, sendBuf, size) < 0) {
-                return -1;
+                return SEND_FAILED;
             }
 
             delete []sendBuf;
@@ -155,13 +149,12 @@ int processRequests(int socket, fd_set *active_fd_set){
 
 
         if (sendAll(socket, sendBuf, size) < 0) {
-            return -1;
+            return SEND_FAILED;
         }
 
     } else {
-        // TODO return wrong message type code
+        return UNKNOWN_MSG_TYPE;
     }
-
 
     delete []recvBuf;
 
@@ -223,7 +216,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     int size[1];
     size[0] = sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1 + sizeof(int) * argTypesSize;
     if (send(serverSocket, size, sizeof(MessageType), 0) < 0) {
-        return -1;
+        return SEND_FAILED;
     }
 
     char *sendBuf = new char[size[0]];
@@ -239,31 +232,33 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     memcpy(sendBuf + sizeof(REGISTER) + strlen(hostname) + 1 + sizeof(portNum) + strlen(name) + 1,
         argTypes, sizeof(int) * argTypesSize);
     if (sendAll(serverSocket, sendBuf, size) < 0) {
-        return -1;
+        return SEND_FAILED;
     }
     delete []sendBuf;
 
     // waiting for result
     if (recv(serverSocket, size, sizeof(size), 0) <= 0) {
-        return -1;
+        return RECV_FAILED;
     }
     char *recvBuf = new char[size[0]];
     if (recvAll(serverSocket, recvBuf, size) <= 0) {
-        return -1;
+        return RECV_FAILED;
     }
 
     MessageType response;
-    memcpy(&response, recvBuf, size[0]);
-    delete []recvBuf;
+    memcpy(&response, recvBuf, sizeof(MessageType));
     if (response == REGISTER_SUCCESS) {
         struct ProcedureSignature function = {name, argTypes};
         skeletonMap[function] = f;
-        return 0;
+    } else if (response == REGISTER_FAILURE) {
+        int reasonCode;
+        memcpy(&reasonCode, recvBuf + sizeof(MessageType), sizeof(int));
+        return reasonCode;
     } else {
-        return 1;
+        return UNKNOWN_MSG_TYPE;
     }
-
-    return -1;
+    delete []recvBuf;
+    return 0;
 }
 
 int rpcExecute() {

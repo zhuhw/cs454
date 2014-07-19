@@ -96,7 +96,7 @@ int connectTo(const char* address, sockaddr_in siServer) {
 
     // create client socket
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        cerr << "Cannot create socket" << endl;
+        // cerr << "Cannot create socket" << endl;
         return -1;
     }
 
@@ -105,13 +105,13 @@ int connectTo(const char* address, sockaddr_in siServer) {
     // connect to server
     host = gethostbyname(address);
     if (!host) {
-        cerr << "could not resolve hostname!" << endl;
+        // cerr << "could not resolve hostname!" << endl;
         return -1;
     }
 
     memcpy((void *)&siServer.sin_addr, host->h_addr_list[0], host->h_length);
     if (connect(clientSocket, (struct sockaddr *)&siServer, sizeof(siServer)) < 0) {
-        cerr << "Connection Failed" << endl;
+        // cerr << "Connection Failed" << endl;
         return -1;
     }
 

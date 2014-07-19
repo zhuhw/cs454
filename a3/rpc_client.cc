@@ -62,7 +62,9 @@ int callServer (char* name, int* argTypes, void** args, const char *hostname, un
     if (recv(sockfd, size, sizeof(size), 0) <= 0) {
         return RECV_FAILED;
     }
+
     char *recvBuf = new char[size[0]];
+
     if (recvAll(sockfd, recvBuf, size) <= 0) {
         return RECV_FAILED;
     }
@@ -301,8 +303,6 @@ int rpcCacheCall(char * name, int * argTypes, void ** args){
         if (status < 0){
             function_db.remove(key, serverInfo);
         }
-
-        function_db.print();
 
         list<ServerInfo>* info_list = function_db.getList(key);
         list_size = info_list == NULL ? 0 : info_list->size();

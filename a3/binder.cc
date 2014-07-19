@@ -76,24 +76,42 @@ int processRequests(int socket, fd_set *active_fd_set){
         struct ProcedureSignature function = {name, intPrt};
         struct ServerInfo serverInfo = {hostname, portno};
 
-        function_db.register_function(function, serverInfo);
+        int reasonCode = function_db.register_function(function, serverInfo);
         add_socket(socket);
+        if (reasonCode == 0) {
+            msgType = REGISTER_SUCCESS;
 
-        msgType = REGISTER_SUCCESS;
+            size[0] = sizeof(MessageType);
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
+            }
 
-        size[0] = sizeof(MessageType);
-        if (send(socket, size, sizeof(MessageType), 0) < 0) {
-            close_and_clean_fd_set(socket, active_fd_set);
-            return SEND_FAILED;
+            char *sendBuf = new char[size[0]];
+            memcpy(sendBuf, &msgType, sizeof(MessageType));
+            if (sendAll(socket, sendBuf, size) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
+            }
+            delete []sendBuf;
+        } else {
+            msgType = REGISTER_FAILURE;
+
+            size[0] = sizeof(MessageType) + sizeof(int);
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
+            }
+
+            char *sendBuf = new char[size[0]];
+            memcpy(sendBuf, &msgType, sizeof(MessageType));
+            memcpy(sendBuf + sizeof(MessageType), &reasonCode, sizeof(int));
+            if (sendAll(socket, sendBuf, size) < 0) {
+                close_and_clean_fd_set(socket, active_fd_set);
+                return SEND_FAILED;
+            }
+            delete []sendBuf;
         }
-
-        char *sendBuf = new char[size[0]];
-        memcpy(sendBuf, &msgType, sizeof(MessageType));
-        if (sendAll(socket, sendBuf, size) < 0) {
-            close_and_clean_fd_set(socket, active_fd_set);
-            return SEND_FAILED;
-        }
-        delete []sendBuf;
 
     } else if (msgType == LOC_REQUEST) {
         char *cur = recvBuf + sizeof(MessageType);

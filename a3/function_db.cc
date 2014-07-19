@@ -4,7 +4,7 @@
 
 using namespace std;
 
-void FunctionDB::register_function(struct ProcedureSignature signatrue, struct ServerInfo info){
+int FunctionDB::register_function(struct ProcedureSignature signatrue, struct ServerInfo info){
     if (function_map.count(signatrue) == 0) {
         // key not existed
         list<ServerInfo> *info_list = new list<ServerInfo>();
@@ -16,12 +16,13 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
 
         for (std::list<ServerInfo>::iterator it= info_list->begin(); it != info_list->end(); ++it){
             if (it->host == info.host && it->port == info.port){
-                return ;
+                return REGISTER_DUPLICATE;
             }
         }
 
         info_list->push_back(info);
     }
+    return 0;
 }
 
 struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
