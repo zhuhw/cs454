@@ -113,11 +113,11 @@ int rpcCall(char* name, int* argTypes, void** args) {
     }
 
     // receive and write to buffer
-    if (recv(clientSocket, size, sizeof(size), 0) <= 0) {
+    if (recv(sockfd, size, sizeof(size), 0) <= 0) {
         return RECV_FAILED;
     }
     recvBuf = new char[size[0]];
-    if (recvAll(clientSocket, recvBuf, size) <= 0) {
+    if (recvAll(sockfd, recvBuf, size) <= 0) {
         return RECV_FAILED;
     }
 
@@ -154,7 +154,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
             }
             args[i] = new char[size[0]];
 
-            if (recvAll(clientSocket, (char *)args[i], size) <= 0) {
+            if (recvAll(sockfd, (char *)args[i], size) <= 0) {
                 return RECV_FAILED;
             }
         }
