@@ -183,6 +183,64 @@ int processRequests(int socket, fd_set *active_fd_set){
         terminate_flag = true;
 
         delete [] sendBuf;
+    } else if (CACHE_REQEUST) {
+        char *cur = recvBuf + sizeof(MessageType);
+        int nameSize = ptrSize(cur);
+
+        char* name = new char[nameSize];
+        memcpy(name, cur, nameSize);
+
+        int *intCur = (int*)(recvBuf + sizeof(MessageType) + nameSize);
+        int argTypesSize = ptrSize(intCur);
+        int *argTypes = new int[argTypesSize];
+        memcpy(argTypes, intCur, argTypesSize * sizeof(int));
+
+        struct ProcedureSignature function = {name, argTypes};
+
+        list<ServerInfo>* server_list = function_db.getList(function);
+
+        int first_int;
+        size[0] = sizeof(first_int);
+        if (server_list == NULL){
+            first_int = LOC_FAILURE_SERVER_NOT_FOUND;
+        } else {
+            first_int = server_list->size();
+        }
+
+        char *sendBuf = new char[size[0]];
+        MessageType msgType = TERMINATE;
+        memcpy(sendBuf, &first_int, sizeof(msgType));
+        if (sendAll(socket, sendBuf, size) < 0) {
+            return SEND_FAILED;
+        }
+
+        if (server_list == NULL)
+            return 0;
+
+        for (list<ServerInfo>::iterator it=server_list->begin(); it!=server_list->end(); ++it) {
+            ServerInfo info = (*it);
+            size[0] = info.host.length() + 1 + sizeof(unsigned short);
+
+            if (send(socket, size, sizeof(size), 0) < 0) {
+                return SEND_FAILED;
+            }
+
+            char *sendBuf = new char[size[0]];
+
+            char *host = new char[info.host.length() + 1];
+            strcpy(host, info.host.c_str());
+
+            memcpy(sendBuf,
+                host, info.host.length() + 1);
+            unsigned short port = info.port;
+            memcpy(sendBuf + info.host.length() + 1,
+                &port, sizeof(unsigned short));
+
+            if (sendAll(socket, sendBuf, size) < 0) {
+                return SEND_FAILED;
+            }
+        }
+
     } else {
         close_and_clean_fd_set(socket, active_fd_set);
         return UNKNOWN_MSG_TYPE;

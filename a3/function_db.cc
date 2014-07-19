@@ -1,5 +1,6 @@
 #include "function_db.h"
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,26 +21,35 @@ void FunctionDB::register_function(struct ProcedureSignature signatrue, struct S
         }
 
         info_list->push_back(info);
-        cout << info_list->size() << endl;
     }
 }
 
 struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
-    if (function_map.count(signatrue) == 0) {
-        ServerInfo info;
-        info.host = "";
+    ServerInfo info;
+    info.host = "";
 
+    if (function_map.count(signatrue) == 0) {
         return info;
     } else {
         list<ServerInfo> *info_list = function_map[signatrue];
 
-        ServerInfo info = info_list->front();
+        if (info_list->size() != 0){
+            info = info_list->front();
 
-        // round robin, pop the first and push it back to the end of the queue
-        info_list->pop_front();
-        info_list->push_back(info);
+            // round robin, pop the first and push it back to the end of the queue
+            info_list->pop_front();
+            info_list->push_back(info);
+        }
 
         return info;
+    }
+}
+
+std::list<ServerInfo>* FunctionDB::getList(struct ProcedureSignature signatrue) {
+    if (function_map.count(signatrue) == 0) {
+        return NULL;
+    } else {
+        return function_map[signatrue];
     }
 }
 
@@ -54,5 +64,13 @@ void FunctionDB::print(){
             cout << it1->host << " " <<  it1->port << " ";
         }
         cout << endl;
+    }
+}
+
+void FunctionDB::remove(struct ProcedureSignature signatrue, struct ServerInfo info){
+    if (function_map.count(signatrue) != 0) {
+        list<ServerInfo> *info_list = function_map[signatrue];
+
+        info_list->remove(info);
     }
 }

@@ -118,11 +118,11 @@ int connectTo(const char* address, sockaddr_in siServer) {
     return clientSocket;
 }
 
-int connectTo(char *address, char* port) {
+int connectTo(const char *address, char* port) {
     return connectTo(address, atoi(port));
 }
 
-int connectTo(char *address, unsigned short port) {
+int connectTo(const char *address, unsigned short port) {
     struct sockaddr_in siServer;
     // set client info, port is implicitly set to 0 by memset
     memset((char *)&siServer, 0, sizeof(siServer));

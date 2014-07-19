@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -g -Wall -MMD
 
-LIB_OBJECTS = rpc_client.o rpc_server.o common.o
+LIB_OBJECTS = rpc_client.o rpc_server.o common.o function_db.o
 LIB_TARGT = lib
 
 SERVER_OBJECTS = server_functions.o server_function_skels.o server.o

@@ -13,7 +13,8 @@ enum MessageType {
     EXECUTE,
     EXECUTE_SUCCESS,
     EXECUTE_FAILURE,
-    TERMINATE
+    TERMINATE,
+    CACHE_REQEUST
 };
 
 enum ReasonCode {
@@ -42,8 +43,8 @@ struct ServerInfo {
 
 bool operator == (const ServerInfo& x, const ServerInfo& y);
 
-int connectTo(char *address, char* port);
-int connectTo(char *address, unsigned short port);
+int connectTo(const char *address, char* port);
+int connectTo(const char *address, unsigned short port);
 int connectTo(struct ServerInfo info);
 
 int ptrSize(char *ptr);
