@@ -21,7 +21,6 @@ int FunctionDB::register_function(struct ProcedureSignature signatrue, struct Se
 
         info_list->push_back(info);
     }
-    print();
     return 0;
 }
 
@@ -42,7 +41,6 @@ struct ServerInfo FunctionDB::locate(struct ProcedureSignature signatrue){
 
         return info;
     }
-    print();
 }
 
 void FunctionDB::print(){
